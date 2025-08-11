@@ -198,23 +198,23 @@ else:
     for i, e in enumerate(st.session_state.entries):
         box = st.container()
         with box:
-            c1, c2, c3 = st.columns([4, 1, 1])
+            c1, c2, c3, c4 = st.columns([4, 2, 1, 1])
             c1.write(f"**{e['id']}** — {e['filename']}")
-            with c2:
+            new_desc = c2.text_input("Description", value=e["description"], key=f"desc_{i}", max_chars=20)
+            st.session_state.entries[i]["description"] = new_desc
+            with c3:
                 # bouton copier via JS
                 components.html(
                     f"""<button onclick="navigator.clipboard.writeText({repr(e['filename'])});"
-                         style="padding:6px 10px;border:1px solid #888;border-radius:6px;background:#f8f9fa;cursor:pointer;">
+                         style="padding:6px 10px;border:1px solid #888;border-radius:6px;background:#f8f9fa;cursor:pointer;margin-right:5px;">
                          Copier
                        </button>""",
                     height=40
                 )
-            with c3:
+            with c4:
                 if st.button("Supprimer", key=f"del_{i}"):
                     st.session_state.entries.pop(i)
                     st.rerun()
-            new_desc = st.text_input("Description (editable)", value=e["description"], key=f"desc_{i}")
-            st.session_state.entries[i]["description"] = new_desc
 
 # Export PDF
 st.divider()

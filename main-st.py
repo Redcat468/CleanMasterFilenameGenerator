@@ -193,53 +193,50 @@ if bc5.button("Calculer"):
     mb, gb = bitrate_h264_high(bitrate_mbps, total_sec)
     st.info(f"Taille estimée : ~{mb:.2f} MB ({gb:.2f} GB)")
 
+import json, html  # assure-toi d'avoir ces imports en haut
+
 st.subheader("Entries")
 if not st.session_state.entries:
     st.caption("Aucune entrée pour l’instant.")
 else:
-    # Couleurs fixes par type de paramètre
+    # Couleurs FIXES par type (DATE = bleu clair)
     TYPE_COLORS = {
-        "PROGRAM":      "#1565C0",
-        "VERSION":      "#6A1B9A",
-        "LANG_SUB":     "#2E7D32",
-        "FILE_FORMAT":  "#EF6C00",
-        "VIDEO_FORMAT": "#00838F",
-        "VIDEO_ASPECT": "#AD1457",
-        "RESOLUTION":   "#283593",
-        "CADENCE":      "#6D4C41",
-        "AUDIO_FORMAT": "#C62828",
-        "AUDIO_CODEC":  "#455A64",
-        "DATE":         "#5D4037",
+        "PROGRAM":      "#1565C0",  # bleu
+        "VERSION":      "#6A1B9A",  # violet
+        "LANG_SUB":     "#2E7D32",  # vert
+        "FILE_FORMAT":  "#EF6C00",  # orange
+        "VIDEO_FORMAT": "#00838F",  # cyan foncé
+        "VIDEO_ASPECT": "#AD1457",  # rose
+        "RESOLUTION":   "#283593",  # indigo
+        "CADENCE":      "#6D4C41",  # brun
+        "AUDIO_FORMAT": "#C62828",  # rouge
+        "AUDIO_CODEC":  "#455A64",  # bleu-gris
+        "DATE":         "#4FC3F7",  # **bleu clair** (fixe)
     }
-    # Ordre canonique (fallback si ancienne entrée sans segments typés)
-    ORDER = ["PROGRAM","VERSION","LANG_SUB","FILE_FORMAT","VIDEO_FORMAT",
-             "VIDEO_ASPECT","RESOLUTION","CADENCE","AUDIO_FORMAT","AUDIO_CODEC","DATE"]
 
     to_delete = []
     for i, e in enumerate(st.session_state.entries):
+        # une seule ligne : [Nom coloré + Copier] | [Description] | [Supprimer]
         col_name, col_desc, col_del = st.columns([6, 4, 1])
 
-        # --- Col 1 : Nom coloré + bouton Copier (collés) ---
+        # --- Col 1 : Nom coloré par TYPE + bouton Copier avec animation ---
         with col_name:
-            # Prépare segments (typés si dispo, sinon fallback par position)
-            if "segments" in e and isinstance(e["segments"], list):
-                seglist = e["segments"]
-            else:
-                raw = e["filename"].split("_")
-                seglist = list(zip(ORDER[:len(raw)], raw))
+            seglist = e.get("segments")  # attendu: list[ (TYPE, value), ... ]
+            if not isinstance(seglist, list) or not seglist:
+                # fallback minimal : tout en PROGRAM si pas de segments typés
+                seglist = [("PROGRAM", part) for part in e["filename"].split("_")]
 
             colored_parts = []
             for t, val in seglist:
                 color = TYPE_COLORS.get(t, "#111")
                 colored_parts.append(
-                    f"<span style='color:{color};font-weight:600'>{html.escape(val)}</span>"
+                    f"<span style='color:{color};font-weight:600'>{html.escape(str(val))}</span>"
                 )
             colored_html = "_".join(colored_parts)
 
             btn_id = f"copybtn_{e['id']}"
-            copy_text = json.dumps(e["filename"])  # sécurisé
+            copy_text = json.dumps(e["filename"])
 
-            # HTML + CSS + JS (animation pulse + feedback texte discret)
             components.html(
                 f"""
                 <style>
@@ -247,6 +244,7 @@ else:
                     padding:6px 12px; border:1px solid #999; border-radius:8px; background:#f8f9fa; cursor:pointer;
                     transition: background 0.25s, transform 0.08s;
                     font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+                    white-space:nowrap;
                   }}
                   .copy-btn:active {{ transform: scale(0.98); }}
                   .copied-anim {{ animation: pulseCopy 700ms ease; }}
@@ -273,7 +271,7 @@ else:
                         btn.classList.add("copied-anim");
                         var old = btn.textContent;
                         btn.textContent = "Copié ✓";
-                        setTimeout(function(){{ btn.textContent = "Copier"; }}, 1000);
+                        setTimeout(function(){{ btn.textContent = "Copier"; }}, 900);
                       }});
                     }});
                   }})();
@@ -282,7 +280,7 @@ else:
                 height=46,
             )
 
-        # --- Col 2 : Description (placeholder, max 50, sans étiquette) ---
+        # --- Col 2 : Description (placeholder, max 50, pas d’étiquette) ---
         with col_desc:
             new_desc = st.text_input(
                 label="",
@@ -294,7 +292,7 @@ else:
             )
             st.session_state.entries[i]["description"] = new_desc
 
-        # --- Col 3 : Supprimer (même ligne) ---
+        # --- Col 3 : Supprimer ---
         with col_del:
             if st.button("Supprimer", key=f"del_{e['id']}"):
                 to_delete.append(i)

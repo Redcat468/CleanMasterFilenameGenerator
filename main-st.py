@@ -197,67 +197,104 @@ st.subheader("Entries")
 if not st.session_state.entries:
     st.caption("Aucune entrée pour l’instant.")
 else:
-    # Couleurs pour chaque segment (texte uniquement)
-    PALETTE = ["#1565C0", "#2E7D32", "#AD1457", "#EF6C00", "#6A1B9A",
-               "#00838F", "#C62828", "#283593", "#6D4C41", "#2E7D32"]
+    # Couleurs fixes par type de paramètre
+    TYPE_COLORS = {
+        "PROGRAM":      "#1565C0",
+        "VERSION":      "#6A1B9A",
+        "LANG_SUB":     "#2E7D32",
+        "FILE_FORMAT":  "#EF6C00",
+        "VIDEO_FORMAT": "#00838F",
+        "VIDEO_ASPECT": "#AD1457",
+        "RESOLUTION":   "#283593",
+        "CADENCE":      "#6D4C41",
+        "AUDIO_FORMAT": "#C62828",
+        "AUDIO_CODEC":  "#455A64",
+        "DATE":         "#5D4037",
+    }
+    # Ordre canonique (fallback si ancienne entrée sans segments typés)
+    ORDER = ["PROGRAM","VERSION","LANG_SUB","FILE_FORMAT","VIDEO_FORMAT",
+             "VIDEO_ASPECT","RESOLUTION","CADENCE","AUDIO_FORMAT","AUDIO_CODEC","DATE"]
 
     to_delete = []
     for i, e in enumerate(st.session_state.entries):
-        # Ligne unique : [Nom coloré + Copier] | [Description] | [Supprimer]
         col_name, col_desc, col_del = st.columns([6, 4, 1])
 
-        # --- Col 1 : Nom coloré + bouton Copier (vraiment côte à côte) ---
+        # --- Col 1 : Nom coloré + bouton Copier (collés) ---
         with col_name:
-            segs = e["filename"].split("_")
-            colored = []
-            for idx, seg in enumerate(segs):
-                color = PALETTE[idx % len(PALETTE)]
-                colored.append(
-                    f"<span style='color:{color};font-weight:600'>{html.escape(seg)}</span>"
+            # Prépare segments (typés si dispo, sinon fallback par position)
+            if "segments" in e and isinstance(e["segments"], list):
+                seglist = e["segments"]
+            else:
+                raw = e["filename"].split("_")
+                seglist = list(zip(ORDER[:len(raw)], raw))
+
+            colored_parts = []
+            for t, val in seglist:
+                color = TYPE_COLORS.get(t, "#111")
+                colored_parts.append(
+                    f"<span style='color:{color};font-weight:600'>{html.escape(val)}</span>"
                 )
-            colored_html = "_".join(colored)
+            colored_html = "_".join(colored_parts)
 
             btn_id = f"copybtn_{e['id']}"
-            copy_text = json.dumps(e["filename"])  # sûr pour JS
+            copy_text = json.dumps(e["filename"])  # sécurisé
 
+            # HTML + CSS + JS (animation pulse + feedback texte discret)
             components.html(
                 f"""
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <div style="font-family:monospace;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">
+                <style>
+                  .copy-btn {{
+                    padding:6px 12px; border:1px solid #999; border-radius:8px; background:#f8f9fa; cursor:pointer;
+                    transition: background 0.25s, transform 0.08s;
+                    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+                  }}
+                  .copy-btn:active {{ transform: scale(0.98); }}
+                  .copied-anim {{ animation: pulseCopy 700ms ease; }}
+                  @keyframes pulseCopy {{
+                    0%   {{ background:#f8f9fa; }}
+                    40%  {{ background:#c8f7d0; }}
+                    100% {{ background:#f8f9fa; }}
+                  }}
+                </style>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;min-width:0;">
+                  <div style="font-family:monospace;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                     {colored_html}
                   </div>
-                  <button id="{btn_id}"
-                          style="padding:6px 12px;border:1px solid #999;border-radius:8px;background:#f8f9fa;cursor:pointer;white-space:nowrap;">
-                    Copier
-                  </button>
+                  <button id="{btn_id}" class="copy-btn" aria-label="Copier">Copier</button>
                 </div>
                 <script>
                   (function(){{
-                    const btn = document.getElementById("{btn_id}");
-                    if (btn) {{
-                      btn.addEventListener('click', function() {{
-                        navigator.clipboard.writeText({copy_text});
+                    var btn = document.getElementById("{btn_id}");
+                    if(!btn) return;
+                    btn.addEventListener("click", function(){{
+                      navigator.clipboard.writeText({copy_text}).then(function(){{
+                        btn.classList.remove("copied-anim");
+                        void btn.offsetWidth; // reset animation
+                        btn.classList.add("copied-anim");
+                        var old = btn.textContent;
+                        btn.textContent = "Copié ✓";
+                        setTimeout(function(){{ btn.textContent = "Copier"; }}, 1000);
                       }});
-                    }}
+                    }});
                   }})();
                 </script>
                 """,
-                height=40,
+                height=46,
             )
 
-        # --- Col 2 : Description (pas d’étiquette, placeholder, max 50) ---
+        # --- Col 2 : Description (placeholder, max 50, sans étiquette) ---
         with col_desc:
             new_desc = st.text_input(
                 label="",
-                value=e["description"],
+                value=e.get("description",""),
                 key=f"desc_{e['id']}",
                 max_chars=50,
-                placeholder="Description (max 50 caractères)",
+                placeholder="Description (max 50)",
                 label_visibility="collapsed",
             )
             st.session_state.entries[i]["description"] = new_desc
 
-        # --- Col 3 : Supprimer ---
+        # --- Col 3 : Supprimer (même ligne) ---
         with col_del:
             if st.button("Supprimer", key=f"del_{e['id']}"):
                 to_delete.append(i)
@@ -266,8 +303,6 @@ else:
         for idx in reversed(to_delete):
             st.session_state.entries.pop(idx)
         st.rerun()
-
-
 
 # Export PDF
 st.divider()

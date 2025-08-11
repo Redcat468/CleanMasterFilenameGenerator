@@ -197,14 +197,17 @@ st.subheader("Entries")
 if not st.session_state.entries:
     st.caption("Aucune entrée pour l’instant.")
 else:
-    # Couleurs douces, cyclées par segment
+    # Couleurs pour chaque segment (texte uniquement)
     PALETTE = ["#1565C0", "#2E7D32", "#AD1457", "#EF6C00", "#6A1B9A",
-               "#00838F", "#C62828", "#2E7D32", "#283593", "#6D4C41"]
+               "#00838F", "#C62828", "#283593", "#6D4C41", "#2E7D32"]
 
     to_delete = []
     for i, e in enumerate(st.session_state.entries):
-        with st.container(border=True):
-            # --- Nom coloré segmenté, en monospace, en gardant les underscores
+        # Ligne unique : [Nom coloré + Copier] | [Description] | [Supprimer]
+        col_name, col_desc, col_del = st.columns([6, 4, 1])
+
+        # --- Col 1 : Nom coloré + bouton Copier (vraiment côte à côte) ---
+        with col_name:
             segs = e["filename"].split("_")
             colored = []
             for idx, seg in enumerate(segs):
@@ -212,43 +215,58 @@ else:
                 colored.append(
                     f"<span style='color:{color};font-weight:600'>{html.escape(seg)}</span>"
                 )
-            st.markdown(
-                "<div style='font-family:monospace;font-size:0.95rem'>"
-                + "_".join(colored) + "</div>",
-                unsafe_allow_html=True
+            colored_html = "_".join(colored)
+
+            btn_id = f"copybtn_{e['id']}"
+            copy_text = json.dumps(e["filename"])  # sûr pour JS
+
+            components.html(
+                f"""
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="font-family:monospace;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">
+                    {colored_html}
+                  </div>
+                  <button id="{btn_id}"
+                          style="padding:6px 12px;border:1px solid #999;border-radius:8px;background:#f8f9fa;cursor:pointer;white-space:nowrap;">
+                    Copier
+                  </button>
+                </div>
+                <script>
+                  (function(){{
+                    const btn = document.getElementById("{btn_id}");
+                    if (btn) {{
+                      btn.addEventListener('click', function() {{
+                        navigator.clipboard.writeText({copy_text});
+                      }});
+                    }}
+                  }})();
+                </script>
+                """,
+                height=40,
             )
 
-            # Description éditable
-            new_desc = st.text_input("Description (éditable)", value=e["description"], key=f"desc_{e['id']}")
+        # --- Col 2 : Description (pas d’étiquette, placeholder, max 50) ---
+        with col_desc:
+            new_desc = st.text_input(
+                label="",
+                value=e["description"],
+                key=f"desc_{e['id']}",
+                max_chars=50,
+                placeholder="Description (max 50 caractères)",
+                label_visibility="collapsed",
+            )
             st.session_state.entries[i]["description"] = new_desc
 
-            # Actions
-            c1, c2 = st.columns([1,1])
-
-            # Bouton Copier (dans la colonne via 'with c1')
-            with c1:
-                components.html(
-                    f"""
-                    <button
-                      onclick="navigator.clipboard.writeText({json.dumps(e['filename'])}).then(()=>{{
-                        this.innerText='Copié !';
-                        setTimeout(()=>this.innerText='Copier',1200);
-                      }})"
-                      style="padding:6px 12px;border:1px solid #999;border-radius:8px;background:#f8f9fa;cursor:pointer;">
-                      Copier
-                    </button>
-                    """,
-                    height=40,
-                )
-
-            # Bouton Supprimer
-            if c2.button("Supprimer", key=f"del_{e['id']}"):
+        # --- Col 3 : Supprimer ---
+        with col_del:
+            if st.button("Supprimer", key=f"del_{e['id']}"):
                 to_delete.append(i)
 
     if to_delete:
         for idx in reversed(to_delete):
             st.session_state.entries.pop(idx)
         st.rerun()
+
 
 
 # Export PDF

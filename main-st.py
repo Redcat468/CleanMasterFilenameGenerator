@@ -134,6 +134,22 @@ def bitrate_h264_high(mbps: float, total_sec: int):
     size_gb = size_mb / 1024
     return size_mb*1.01, size_gb*1.01  # +1% overhead conteneur
 
+@st.dialog("Calculateur de taille H.264 (High)")
+def open_h264_calculator():
+    st.caption("Entrez la durée et le débit moyen en Mbps. Un overhead conteneur (~1%) est inclus.")
+    c1, c2, c3, c4 = st.columns([1,1,1,2])
+    dur_h = c1.number_input("hh", min_value=0, step=1, value=0, key="calc_hh")
+    dur_m = c2.number_input("mm", min_value=0, max_value=59, step=1, value=0, key="calc_mm")
+    dur_s = c3.number_input("ss", min_value=0, max_value=59, step=1, value=0, key="calc_ss")
+    mbps  = c4.number_input("Débit (Mbps)", min_value=0.0, step=0.1, value=25.0, key="calc_mbps")
+
+    cL, cR = st.columns([1,1])
+    if cL.button("Calculer", key="calc_run"):
+        total_sec = int(dur_h)*3600 + int(dur_m)*60 + int(dur_s)
+        mb, gb = bitrate_h264_high(mbps, total_sec)
+        st.success(f"Taille estimée : ~{mb:.2f} MB ({gb:.2f} GB)")
+    if cR.button("Fermer", key="calc_close"):
+        st.rerun()
 
 
 def build_typed_segments(program, version, form_date, language, subtitles,
@@ -349,6 +365,13 @@ if st.session_state.entries:
     data, fname = pdf_bytes(st.session_state.entries, st.session_state.get("program_name", "PROGRAM"))
     st.download_button("Export PDF Report", data=data, file_name=fname, mime="application/pdf")
 
+
+
+st.divider()
+open_col = st.columns([5,1])[1]
+with open_col:
+    if st.button("📏 Calculateur H.264", key="open_calc_dialog"):
+        open_h264_calculator()
 
 
 st.subheader("KISS File size Calculator")

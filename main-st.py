@@ -136,8 +136,7 @@ st.set_page_config(page_title="Export Namer + Bitrate", layout="wide")
 ensure_state()
 file_formats, video_formats = load_config()
 
-st.title("Générateur de noms d’exports (Streamlit)")
-st.caption("Si la page est vide : vérifie les logs et le main file path (streamlit_app.py).")
+st.title("Clean Masters Filename Generator")
 
 with st.form("form"):
     col1, col2, col3 = st.columns([1,1,1])
@@ -166,7 +165,7 @@ with st.form("form"):
     if submitted:
         required_ok = all([program, form_date, language, subtitles, fileformat, videoformat, audioformat])
         if not required_ok:
-            st.error("Merci de remplir tous les champs obligatoires (*)")
+            st.error("Please fill all required fields (*)")
         else:
             fname = build_filename(
                 program, version, form_date, language, subtitles, fileformat, videoformat,
@@ -178,9 +177,9 @@ with st.form("form"):
                 "filename": fname,
                 "description": description or ""
             })
-            st.success("Entrée ajoutée.")
+            st.success("Entry added.")
 
-st.subheader("Calculateur de poids H.264 (High Profile)")
+st.subheader("KISS File size Calculator")
 bc1, bc2, bc3, bc4, bc5 = st.columns([1,1,1,1,2])
 dur_h = bc1.number_input("Heures", min_value=0, step=1, value=0)
 dur_m = bc2.number_input("Minutes", min_value=0, max_value=59, step=1, value=0)
@@ -199,7 +198,7 @@ else:
     for i, e in enumerate(st.session_state.entries):
         box = st.container()
         with box:
-            c1, c2 = st.columns([4,1])
+            c1, c2, c3 = st.columns([4, 1, 1])
             c1.write(f"**{e['id']}** — {e['filename']}")
             with c2:
                 # bouton copier via JS
@@ -210,12 +209,12 @@ else:
                        </button>""",
                     height=40
                 )
-            dcol, bcol = st.columns([5,1])
-            new_desc = dcol.text_input("Description (éditable)", value=e["description"], key=f"desc_{i}")
+            with c3:
+                if st.button("Supprimer", key=f"del_{i}"):
+                    st.session_state.entries.pop(i)
+                    st.rerun()
+            new_desc = st.text_input("Description (editable)", value=e["description"], key=f"desc_{i}")
             st.session_state.entries[i]["description"] = new_desc
-            if bcol.button("Supprimer", key=f"del_{i}"):
-                st.session_state.entries.pop(i)
-                st.rerun()
 
 # Export PDF
 st.divider()

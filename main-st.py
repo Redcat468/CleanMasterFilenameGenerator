@@ -134,6 +134,50 @@ def bitrate_h264_high(mbps: float, total_sec: int):
     size_gb = size_mb / 1024
     return size_mb*1.01, size_gb*1.01  # +1% overhead conteneur
 
+
+
+def build_typed_segments(program, version, form_date, language, subtitles,
+                         fileformat, videoformat, videoaspect, videores,
+                         cadence, audioformat, audiocodec):
+    prog = sanitize(program)
+    vers = sanitize(version)
+    date_code = form_date.strftime("%y%m%d")
+    videoaspect_clean = re.sub(r"[.,]", "", videoaspect or "")
+    videores_clean = sanitize(videores)
+    audiocodec_clean = sanitize(audiocodec)
+
+    if subtitles == "NOSUB":
+        sub_seg = "NOSUB"
+    elif subtitles:
+        sub_seg = f"ST{subtitles}"
+    else:
+        sub_seg = ""
+    lang_seg = f"{language}-{sub_seg}" if sub_seg else language
+
+    typed = [("PROGRAM", prog)]
+    if vers:
+        typed.append(("VERSION", vers))
+    typed += [
+        ("LANG_SUB",     lang_seg),
+        ("FILE_FORMAT",  fileformat),
+        ("VIDEO_FORMAT", videoformat),
+    ]
+    if videoaspect_clean:
+        typed.append(("VIDEO_ASPECT", videoaspect_clean))
+    if videores_clean:
+        typed.append(("RESOLUTION",   videores_clean))
+    if cadence:
+        typed.append(("CADENCE",      cadence))
+    typed.append(("AUDIO_FORMAT", audioformat))
+    if audiocodec_clean:
+        typed.append(("AUDIO_CODEC",  audiocodec_clean))
+    typed.append(("DATE", date_code))
+    return typed
+
+
+
+
+
 # -------- UI --------
 st.set_page_config(page_title="Export Namer + Bitrate", layout="wide")
 ensure_state()
@@ -174,56 +218,52 @@ with st.form("form"):
                 program, version, form_date, language, subtitles, fileformat, videoformat,
                 videoaspect, videores, cadence, audioformat, audiocodec
             )
+            typed = build_typed_segments(
+                program, version, form_date, language, subtitles, fileformat, videoformat,
+                videoaspect, videores, cadence, audioformat, audiocodec
+            )
             st.session_state.program_name = program
+            st.session_state["id_counter"] = st.session_state.get("id_counter", 0) + 1
             st.session_state.entries.append({
-                "id": next_id(),
+                "id": f"{st.session_state['id_counter']:02d}",
                 "filename": fname,
-                "description": description or ""
+                "description": description or "",
+                "segments": typed,  # <<< IMPORTANT : couleurs stables par TYPE
             })
             st.success("Entry added.")
 
-st.subheader("KISS File size Calculator")
-bc1, bc2, bc3, bc4, bc5 = st.columns([1,1,1,1,2])
-dur_h = bc1.number_input("Heures", min_value=0, step=1, value=0)
-dur_m = bc2.number_input("Minutes", min_value=0, max_value=59, step=1, value=0)
-dur_s = bc3.number_input("Secondes", min_value=0, max_value=59, step=1, value=0)
-bitrate_mbps = bc4.number_input("Débit (Mbps)", min_value=0.0, step=0.1, value=25.0)
-if bc5.button("Calculer"):
-    total_sec = int(dur_h)*3600 + int(dur_m)*60 + int(dur_s)
-    mb, gb = bitrate_h264_high(bitrate_mbps, total_sec)
-    st.info(f"Taille estimée : ~{mb:.2f} MB ({gb:.2f} GB)")
 
-import json, html  # assure-toi d'avoir ces imports en haut
+
+
 
 st.subheader("Entries")
 if not st.session_state.entries:
     st.caption("Aucune entrée pour l’instant.")
 else:
-    # Couleurs FIXES par type (DATE = bleu clair)
     TYPE_COLORS = {
-        "PROGRAM":      "#1565C0",  # bleu
-        "VERSION":      "#6A1B9A",  # violet
-        "LANG_SUB":     "#2E7D32",  # vert
-        "FILE_FORMAT":  "#EF6C00",  # orange
-        "VIDEO_FORMAT": "#00838F",  # cyan foncé
-        "VIDEO_ASPECT": "#AD1457",  # rose
-        "RESOLUTION":   "#283593",  # indigo
-        "CADENCE":      "#6D4C41",  # brun
-        "AUDIO_FORMAT": "#C62828",  # rouge
-        "AUDIO_CODEC":  "#455A64",  # bleu-gris
-        "DATE":         "#4FC3F7",  # **bleu clair** (fixe)
+        "PROGRAM":      "#1565C0",
+        "VERSION":      "#6A1B9A",
+        "LANG_SUB":     "#2E7D32",
+        "FILE_FORMAT":  "#EF6C00",
+        "VIDEO_FORMAT": "#00838F",
+        "VIDEO_ASPECT": "#AD1457",
+        "RESOLUTION":   "#283593",
+        "CADENCE":      "#6D4C41",
+        "AUDIO_FORMAT": "#C62828",
+        "AUDIO_CODEC":  "#455A64",
+        "DATE":         "#4FC3F7",  # bleu clair fixe
     }
 
     to_delete = []
     for i, e in enumerate(st.session_state.entries):
-        # une seule ligne : [Nom coloré + Copier] | [Description] | [Supprimer]
         col_name, col_desc, col_del = st.columns([6, 4, 1])
 
-        # --- Col 1 : Nom coloré par TYPE + bouton Copier avec animation ---
+        # --- Nom coloré par TYPE + Copier à côté, avec animation ---
         with col_name:
-            seglist = e.get("segments")  # attendu: list[ (TYPE, value), ... ]
-            if not isinstance(seglist, list) or not seglist:
-                # fallback minimal : tout en PROGRAM si pas de segments typés
+            seglist = e.get("segments", [])
+            if not seglist:
+                # si vieilles entrées sans 'segments', on ne colore pas correctement (tout serait bleu) :
+                # supprime-les et ré-ajoute-les pour bénéficier des couleurs fixes
                 seglist = [("PROGRAM", part) for part in e["filename"].split("_")]
 
             colored_parts = []
@@ -267,7 +307,7 @@ else:
                     btn.addEventListener("click", function(){{
                       navigator.clipboard.writeText({copy_text}).then(function(){{
                         btn.classList.remove("copied-anim");
-                        void btn.offsetWidth; // reset animation
+                        void btn.offsetWidth;
                         btn.classList.add("copied-anim");
                         var old = btn.textContent;
                         btn.textContent = "Copié ✓";
@@ -280,7 +320,7 @@ else:
                 height=46,
             )
 
-        # --- Col 2 : Description (placeholder, max 50, pas d’étiquette) ---
+        # --- Description à droite (placeholder, max 50, pas d’étiquette) ---
         with col_desc:
             new_desc = st.text_input(
                 label="",
@@ -292,7 +332,7 @@ else:
             )
             st.session_state.entries[i]["description"] = new_desc
 
-        # --- Col 3 : Supprimer ---
+        # --- Supprimer (même ligne) ---
         with col_del:
             if st.button("Supprimer", key=f"del_{e['id']}"):
                 to_delete.append(i)
@@ -302,8 +342,22 @@ else:
             st.session_state.entries.pop(idx)
         st.rerun()
 
+
 # Export PDF
 st.divider()
 if st.session_state.entries:
     data, fname = pdf_bytes(st.session_state.entries, st.session_state.get("program_name", "PROGRAM"))
     st.download_button("Export PDF Report", data=data, file_name=fname, mime="application/pdf")
+
+
+
+st.subheader("KISS File size Calculator")
+bc1, bc2, bc3, bc4, bc5 = st.columns([1,1,1,1,2])
+dur_h = bc1.number_input("Heures", min_value=0, step=1, value=0)
+dur_m = bc2.number_input("Minutes", min_value=0, max_value=59, step=1, value=0)
+dur_s = bc3.number_input("Secondes", min_value=0, max_value=59, step=1, value=0)
+bitrate_mbps = bc4.number_input("Débit (Mbps)", min_value=0.0, step=0.1, value=25.0)
+if bc5.button("Calculer"):
+    total_sec = int(dur_h)*3600 + int(dur_m)*60 + int(dur_s)
+    mb, gb = bitrate_h264_high(bitrate_mbps, total_sec)
+    st.info(f"Taille estimée : ~{mb:.2f} MB ({gb:.2f} GB)")

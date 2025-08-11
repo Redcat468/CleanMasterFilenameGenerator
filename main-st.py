@@ -195,30 +195,32 @@ if not st.session_state.entries:
     st.caption("Aucune entrée pour l’instant.")
 else:
     # rendu simple en liste, avec édition de la description + copie + suppression
+    import pandas as pd
+
+    # Créer un DataFrame pour afficher les entrées dans un tableau
+    df_entries = pd.DataFrame(st.session_state.entries)
+
+    # Afficher le tableau avec Streamlit
+    st.table(df_entries[["id", "filename", "description"]])
+
+    # Mettre à jour les descriptions et ajouter les boutons
     for i, e in enumerate(st.session_state.entries):
-        with st.container():
-            c1, c2, c3 = st.columns([4, 2, 2])
-            c1.write(f"**{e['id']}** — {e['filename']}")
-            new_desc = c2.text_input("Description", value=e["description"], key=f"desc_{i}", max_chars=20)
-            st.session_state.entries[i]["description"] = new_desc
-            with c3:
-                # Conteneur pour les boutons
-                btn_container = st.container()
-                with btn_container:
-                    col_btn1, col_btn2 = st.columns([1, 1])
-                    with col_btn1:
-                        # bouton copier via JS
-                        components.html(
-                            f"""<button onclick="navigator.clipboard.writeText({repr(e['filename'])});"
-                                 style="padding:6px 10px;border:1px solid #888;border-radius:6px;background:#f8f9fa;cursor:pointer;">
-                                 Copier
-                               </button>""",
-                            height=40
-                        )
-                    with col_btn2:
-                        if st.button("Supprimer", key=f"del_{i}"):
-                            st.session_state.entries.pop(i)
-                            st.rerun()
+        new_desc = st.text_input("Description", value=e["description"], key=f"desc_{i}", max_chars=20)
+        st.session_state.entries[i]["description"] = new_desc
+
+        # Bouton copier à droite du nom
+        components.html(
+            f"""<button onclick="navigator.clipboard.writeText({repr(e['filename'])});"
+                 style="padding:6px 10px;border:1px solid #888;border-radius:6px;background:#f8f9fa;cursor:pointer;">
+                 Copier
+               </button>""",
+            height=40
+        )
+
+        # Bouton supprimer
+        if st.button("Supprimer", key=f"del_{i}"):
+            st.session_state.entries.pop(i)
+            st.rerun()
 
 # Export PDF
 st.divider()

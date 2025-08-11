@@ -25,10 +25,10 @@ def load_config():
     return file_formats, video_formats
 
 LANGUAGES = [
-    ("ZH","Mandarin"), ("ES","Espagnol"), ("EN","Anglais"), ("HI","Hindi"),
+    ("FR","Français"), ("ES","Espagnol"), ("EN","Anglais"), ("HI","Hindi"),
     ("AR","Arabe"), ("BN","Bengali"), ("PT","Portugais"), ("RU","Russe"),
     ("JA","Japonais"), ("PA","Pendjabi"), ("MR","Marathi"), ("TE","Télougou"),
-    ("VI","Vietnamien"), ("KO","Coréen"), ("FR","Français"), ("DE","Allemand"),
+    ("VI","Vietnamien"), ("KO","Coréen"), ("ZH","Mandarin"), ("DE","Allemand"),
     ("TA","Tamoul"), ("UR","Ourdou"), ("JV","Javanais"), ("IT","Italien")
 ]
 SUBTITLES = LANGUAGES + [("NOSUB", "NoSub")]
@@ -190,34 +190,38 @@ if bc5.button("Calculer"):
     mb, gb = bitrate_h264_high(bitrate_mbps, total_sec)
     st.info(f"Taille estimée : ~{mb:.2f} MB ({gb:.2f} GB)")
 
-st.subheader("Entrées")
+st.subheader("Entries")
 if not st.session_state.entries:
     st.caption("Aucune entrée pour l’instant.")
 else:
     # rendu simple en liste, avec édition de la description + copie + suppression
     for i, e in enumerate(st.session_state.entries):
-        box = st.container()
-        with box:
-            c1, c2, c3, c4 = st.columns([4, 2, 1, 1])
+        with st.container():
+            c1, c2, c3 = st.columns([4, 2, 2])
             c1.write(f"**{e['id']}** — {e['filename']}")
             new_desc = c2.text_input("Description", value=e["description"], key=f"desc_{i}", max_chars=20)
             st.session_state.entries[i]["description"] = new_desc
             with c3:
-                # bouton copier via JS
-                components.html(
-                    f"""<button onclick="navigator.clipboard.writeText({repr(e['filename'])});"
-                         style="padding:6px 10px;border:1px solid #888;border-radius:6px;background:#f8f9fa;cursor:pointer;margin-right:5px;">
-                         Copier
-                       </button>""",
-                    height=40
-                )
-            with c4:
-                if st.button("Supprimer", key=f"del_{i}"):
-                    st.session_state.entries.pop(i)
-                    st.rerun()
+                # Conteneur pour les boutons
+                btn_container = st.container()
+                with btn_container:
+                    col_btn1, col_btn2 = st.columns([1, 1])
+                    with col_btn1:
+                        # bouton copier via JS
+                        components.html(
+                            f"""<button onclick="navigator.clipboard.writeText({repr(e['filename'])});"
+                                 style="padding:6px 10px;border:1px solid #888;border-radius:6px;background:#f8f9fa;cursor:pointer;">
+                                 Copier
+                               </button>""",
+                            height=40
+                        )
+                    with col_btn2:
+                        if st.button("Supprimer", key=f"del_{i}"):
+                            st.session_state.entries.pop(i)
+                            st.rerun()
 
 # Export PDF
 st.divider()
 if st.session_state.entries:
     data, fname = pdf_bytes(st.session_state.entries, st.session_state.get("program_name", "PROGRAM"))
-    st.download_button("Exporter PDF", data=data, file_name=fname, mime="application/pdf")
+    st.download_button("Export PDF Report", data=data, file_name=fname, mime="application/pdf")

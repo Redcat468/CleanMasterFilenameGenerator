@@ -5,6 +5,9 @@ from datetime import datetime, date
 from io import BytesIO
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
+import json
+
+
 
 # -------- Helpers --------
 def load_config():
@@ -194,37 +197,37 @@ st.subheader("Entries")
 if not st.session_state.entries:
     st.caption("Aucune entrée pour l’instant.")
 else:
-    # rendu simple en liste, avec édition de la description + copie + suppression
-    import pandas as pd
-
-    # Créer un DataFrame pour afficher les entrées dans un tableau
-    df_entries = pd.DataFrame(st.session_state.entries)
-
-    # Ajouter des colonnes pour l'édition de la description et les boutons
-    df_entries["description"] = df_entries.apply(
-        lambda row: st.text_input("Description", value=row["description"], key=f"desc_{row['id']}", max_chars=20), axis=1
-    )
-    df_entries["copier"] = df_entries.apply(
-        lambda row: components.html(
-            f"""<button onclick="navigator.clipboard.writeText({repr(row['filename'])});"
-                 style="padding:6px 10px;border:1px solid #888;border-radius:6px;background:#f8f9fa;cursor:pointer;">
-                 Copier
-               </button>""",
-            height=40
-        ), axis=1
-    )
-    df_entries["supprimer"] = df_entries.apply(
-        lambda row: st.button("Supprimer", key=f"del_{row['id']}"), axis=1
-    )
-
-    # Afficher le tableau avec Streamlit
-    st.table(df_entries[["id", "filename", "description", "copier", "supprimer"]])
-
-    # Gérer la suppression des entrées
+    to_delete = []
     for i, e in enumerate(st.session_state.entries):
-        if st.session_state.entries[i]["supprimer"]:
-            st.session_state.entries.pop(i)
-            st.rerun()
+        with st.container(border=True):
+            # Ligne 1 : ID + filename
+            st.markdown(f"**{e['id']}** — `{e['filename']}`")
+
+            # Ligne 2 : description éditable
+            new_desc = st.text_input("Description (éditable)", value=e["description"], key=f"desc_{e['id']}")
+            st.session_state.entries[i]["description"] = new_desc
+
+            # Ligne 3 : actions
+            a1, a2 = st.columns([1,1])
+            if a1.button("Copier", key=f"copy_{e['id']}"):
+                # Copie dans le presse-papiers via petit snippet JS
+                components.html(
+                    f"""
+                    <script>
+                      navigator.clipboard.writeText({json.dumps(e['filename'])});
+                    </script>
+                    """,
+                    height=0
+                )
+                st.success("Nom copié dans le presse-papiers.", icon="✅")
+
+            if a2.button("Supprimer", key=f"del_{e['id']}"):
+                to_delete.append(i)
+
+    if to_delete:
+        for idx in reversed(to_delete):
+            st.session_state.entries.pop(idx)
+        st.rerun()
 
 # Export PDF
 st.divider()

@@ -5,7 +5,7 @@ from datetime import datetime, date
 from io import BytesIO
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
-import json
+import json, html
 
 
 
@@ -197,37 +197,62 @@ st.subheader("Entries")
 if not st.session_state.entries:
     st.caption("Aucune entrée pour l’instant.")
 else:
+    # Palette douce pour les segments
+    PALETTE = [
+        "#E3F2FD", "#FFF3E0", "#F3E5F5", "#E8F5E9", "#FCE4EC",
+        "#FFFDE7", "#E0F7FA", "#F1F8E9", "#EDE7F6", "#F9FBE7"
+    ]
+
     to_delete = []
     for i, e in enumerate(st.session_state.entries):
         with st.container(border=True):
-            # Ligne 1 : ID + filename
-            st.markdown(f"**{e['id']}** — `{e['filename']}`")
+            segs = e["filename"].split("_")
 
-            # Ligne 2 : description éditable
+            # Affichage des segments en badges colorés
+            badges = " ".join(
+                f"<span style='background:{PALETTE[idx % len(PALETTE)]};"
+                f"padding:4px 8px;border-radius:8px;margin:2px;display:inline-block;"
+                f"border:1px solid rgba(0,0,0,0.08);font-weight:600;color:#111;'>"
+                f"{html.escape(seg)}</span>"
+                for idx, seg in enumerate(segs)
+            )
+            st.markdown(badges, unsafe_allow_html=True)
+
+            # Description éditable
             new_desc = st.text_input("Description (éditable)", value=e["description"], key=f"desc_{e['id']}")
             st.session_state.entries[i]["description"] = new_desc
 
-            # Ligne 3 : actions
-            a1, a2 = st.columns([1,1])
-            if a1.button("Copier", key=f"copy_{e['id']}"):
-                # Copie dans le presse-papiers via petit snippet JS
-                components.html(
-                    f"""
-                    <script>
-                      navigator.clipboard.writeText({json.dumps(e['filename'])});
-                    </script>
-                    """,
-                    height=0
-                )
-                st.success("Nom copié dans le presse-papiers.", icon="✅")
+            # Actions: Copier (dans l'iframe → geste utilisateur) + Supprimer
+            c1, c2, c3 = st.columns([2,1,1])
+            # Bouton copier dans un composant HTML pour que le clic soit géré côté navigateur
+            c1.components.v1.html(
+                f"""
+                <div>
+                  <button
+                    onclick="navigator.clipboard.writeText({json.dumps(e['filename'])}).then(()=>{{
+                        this.innerText='Copié !';
+                        setTimeout(()=>this.innerText='Copier',1200);
+                    }});"
+                    style="padding:6px 12px;border:1px solid #999;border-radius:8px;background:#f8f9fa;cursor:pointer;">
+                    Copier
+                  </button>
+                </div>
+                """,
+                height=40,
+            )
 
-            if a2.button("Supprimer", key=f"del_{e['id']}"):
+            # (Optionnel) Afficher aussi le nom en bloc avec l’icône de copie native de Streamlit
+            c2.code(e["filename"])
+
+            # Supprimer l’entrée
+            if c3.button("Supprimer", key=f"del_{e['id']}"):
                 to_delete.append(i)
 
     if to_delete:
         for idx in reversed(to_delete):
             st.session_state.entries.pop(idx)
         st.rerun()
+
 
 # Export PDF
 st.divider()

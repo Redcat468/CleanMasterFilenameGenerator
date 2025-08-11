@@ -367,8 +367,79 @@ if st.session_state.entries:
 
 
 
+# --- Popup "Calculateur H.264" sans st.dialog ---
+if "calc_open" not in st.session_state:
+    st.session_state.calc_open = False
+
 st.divider()
-open_col = st.columns([5,1])[1]
+open_col = st.columns([5, 1])[1]
 with open_col:
-    if st.button("📏 Calculateur H.264", key="open_calc_dialog"):
-        open_h264_calculator()
+    if st.button("📏 Calculateur H.264"):
+        st.session_state.calc_open = True
+
+if st.session_state.calc_open:
+    components.html(
+        """
+        <div id="h264-modal-backdrop"
+             style="position:fixed;inset:0;background:rgba(0,0,0,0.45);
+                    z-index:9999;display:flex;align-items:center;justify-content:center;">
+          <div style="background:#fff;width:440px;max-width:92vw;border-radius:12px;
+                      padding:16px 16px 14px;box-shadow:0 10px 30px rgba(0,0,0,0.3);
+                      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div style="font-weight:700;font-size:16px;">Calculateur de taille H.264 (High)</div>
+              <button onclick="document.getElementById('h264-modal-backdrop').remove();"
+                      style="border:none;background:#f1f3f5;cursor:pointer;border-radius:8px;
+                             padding:4px 8px;">✕</button>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px;">
+              <input id="h264-hh" type="number" min="0" placeholder="hh"
+                     style="padding:8px;border:1px solid #ccc;border-radius:8px;">
+              <input id="h264-mm" type="number" min="0" max="59" placeholder="mm"
+                     style="padding:8px;border:1px solid #ccc;border-radius:8px;">
+              <input id="h264-ss" type="number" min="0" max="59" placeholder="ss"
+                     style="padding:8px;border:1px solid #ccc;border-radius:8px;">
+              <input id="h264-mbps" type="number" min="0" step="0.1" placeholder="Mbps"
+                     style="padding:8px;border:1px solid #ccc;border-radius:8px;">
+            </div>
+
+            <div style="display:flex;gap:8px;align-items:center;margin-top:12px;">
+              <button id="h264-calc"
+                      style="padding:8px 12px;border:1px solid #888;border-radius:8px;background:#f8f9fa;cursor:pointer;">
+                Calculer
+              </button>
+              <div id="h264-out" style="font-weight:600;"></div>
+            </div>
+
+            <div style="color:#6c757d;font-size:12px;margin-top:8px;">
+              Inclut ~1% d’overhead conteneur (approximatif).
+            </div>
+          </div>
+        </div>
+
+        <script>
+          (function(){
+            const btn = document.getElementById('h264-calc');
+            const out = document.getElementById('h264-out');
+            if (!btn) return;
+            btn.addEventListener('click', function(){
+              const h = parseFloat(document.getElementById('h264-hh').value)  || 0;
+              const m = parseFloat(document.getElementById('h264-mm').value)  || 0;
+              const s = parseFloat(document.getElementById('h264-ss').value)  || 0;
+              const mbps = parseFloat(document.getElementById('h264-mbps').value) || 0;
+              const sec = h*3600 + m*60 + s;
+              // Taille MB = (Mbps * s) / 8 ; GB = MB / 1024 ; +1% overhead
+              const sizeMB = (mbps * sec) / 8;
+              const sizeGB = sizeMB / 1024;
+              const MB = sizeMB * 1.01;
+              const GB = sizeGB * 1.01;
+              out.textContent = `≈ ${MB.toFixed(2)} MB (${GB.toFixed(2)} GB)`;
+            });
+          })();
+        </script>
+        """,
+        height=360,
+    )
+    # On réinitialise le flag pour ne pas réouvrir au prochain rerun
+    st.session_state.calc_open = False

@@ -233,16 +233,6 @@ with st.form("form"):
             st.success("Entry added.")
 
 
-with st.expander("KISS File size Calculator"):
-    bc1, bc2, bc3, bc4, bc5 = st.columns([1,1,1,1,2])
-    dur_h = bc1.number_input("Heures", min_value=0, step=1, value=0)
-    dur_m = bc2.number_input("Minutes", min_value=0, max_value=59, step=1, value=0)
-    dur_s = bc3.number_input("Secondes", min_value=0, max_value=59, step=1, value=0)
-    bitrate_mbps = bc4.number_input("Débit (Mbps)", min_value=0.0, step=0.1, value=25.0)
-    if bc5.button("Calculer"):
-        total_sec = int(dur_h)*3600 + int(dur_m)*60 + int(dur_s)
-        mb, gb = bitrate_h264_high(bitrate_mbps, total_sec)
-        st.info(f"Taille estimée : ~{mb:.2f} MB ({gb:.2f} GB)")
 
 
 st.subheader("Entries")
@@ -357,3 +347,16 @@ st.divider()
 if st.session_state.entries:
     data, fname = pdf_bytes(st.session_state.entries, st.session_state.get("program_name", "PROGRAM"))
     st.download_button("Export PDF Report", data=data, file_name=fname, mime="application/pdf")
+
+
+
+with st.expander("KISS File size Calculator"):
+    bc1, bc2, bc3, bc4, bc5 = st.columns([1,1,1,1,2])
+    dur_h = bc1.number_input("Heures", min_value=0, step=1, value=0)
+    dur_m = bc2.number_input("Minutes", min_value=0, max_value=59, step=1, value=0)
+    dur_s = bc3.number_input("Secondes", min_value=0, max_value=59, step=1, value=0)
+    bitrate_mbps = bc4.number_input("Débit (Mbps)", min_value=0.0, step=0.1, value=25.0)
+    if bc5.button("Calculer"):
+        total_sec = int(dur_h)*3600 + int(dur_m)*60 + int(dur_s)
+        mb, gb = bitrate_h264_high(bitrate_mbps, total_sec)
+        st.info(f"Taille estimée : ~{mb:.2f} MB ({gb:.2f} GB)")

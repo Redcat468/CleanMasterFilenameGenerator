@@ -141,46 +141,54 @@ file_formats, video_formats = load_config()
 
 st.title("Clean Masters Filename Generator")
 
-with st.form("form"):
-    col1, col2, col3 = st.columns([1,1,1])
-    program = col1.text_input("PROGRAM NAME *", value=st.session_state.program_name, key="program_name_input")
-    version = col2.text_input("VERSION", key="version")
-    form_date = col3.date_input("DATE *", value=date.today(), format="YYYY-MM-DD", key="form_date")
-
-    col4, col5, col6 = st.columns([1,1,1])
-    language = col4.selectbox("LANGUAGE *", options=[c for c,_ in LANGUAGES], format_func=lambda x: dict(LANGUAGES)[x])
-    subtitles = col5.selectbox("SUBTITLES *", options=[c for c,_ in SUBTITLES], format_func=lambda x: dict(SUBTITLES).get(x, x))
-    fileformat = col6.selectbox("FILE FORMAT *", options=file_formats)
-
-    col7, col8, col9 = st.columns([1,1,1])
-    videoformat = col7.selectbox("VIDEO FORMAT *", options=video_formats)
-    videoaspect = col8.text_input("VIDEO ASPECT (ex: 1.85 ou 1,85)", value="")
-    videores = col9.text_input("VIDEO RESOLUTION (ex: 1920x1080)", value="")
-
-    col10, col11, col12 = st.columns([1,1,1])
-    cadence = col10.selectbox("CADENCE", options=CADENCES, index=0)
-    audioformat = col11.selectbox("AUDIO FORMAT *", options=[c for c,_ in AUDIO_FORMATS], format_func=lambda x: dict(AUDIO_FORMATS)[x] + f" ({x})")
-    audiocodec = col12.text_input("AUDIO CODEC", value="")
-
-    description = st.text_input("Description", value="")
-
-    submitted = st.form_submit_button("Add Filename entry")
-    if submitted:
-        required_ok = all([program, form_date, language, subtitles, fileformat, videoformat, audioformat])
-        if not required_ok:
-            st.error("Please fill all required fields (*)")
+submitted = st.form_submit_button("Add Filename entry")
+if submitted:
+    required_ok = all([program, form_date, language, subtitles, fileformat, videoformat, audioformat])
+    if not required_ok:
+        st.error("Please fill all required fields (*)")
+    else:
+        fname = build_filename(
+            program, version, form_date, language, subtitles, fileformat, videoformat,
+            videoaspect, videores, cadence, audioformat, audiocodec
+        )
+        # --- Segments typés pour couleurs stables ---
+        prog = sanitize(program)
+        vers = sanitize(version)
+        date_code = form_date.strftime("%y%m%d")
+        videoaspect_clean = re.sub(r"[.,]", "", videoaspect or "")
+        videores_clean = sanitize(videores)
+        audiocodec_clean = sanitize(audiocodec)
+        if subtitles == "NOSUB":
+            sub_seg = "NOSUB"
+        elif subtitles:
+            sub_seg = f"ST{subtitles}"
         else:
-            fname = build_filename(
-                program, version, form_date, language, subtitles, fileformat, videoformat,
-                videoaspect, videores, cadence, audioformat, audiocodec
-            )
-            st.session_state.program_name = program
-            st.session_state.entries.append({
-                "id": next_id(),
-                "filename": fname,
-                "description": description or ""
-            })
-            st.success("Entry added.")
+            sub_seg = ""
+        lang_seg = f"{language}-{sub_seg}" if sub_seg else language
+
+        typed = [("PROGRAM", prog)]
+        if vers: typed.append(("VERSION", vers))
+        typed += [
+            ("LANG_SUB", lang_seg),
+            ("FILE_FORMAT", fileformat),
+            ("VIDEO_FORMAT", videoformat),
+        ]
+        if videoaspect_clean: typed.append(("VIDEO_ASPECT", videoaspect_clean))
+        if videores_clean:    typed.append(("RESOLUTION", videores_clean))
+        if cadence:           typed.append(("CADENCE", cadence))
+        typed.append(("AUDIO_FORMAT", audioformat))
+        if audiocodec_clean:  typed.append(("AUDIO_CODEC", audiocodec_clean))
+        typed.append(("DATE", date_code))
+
+        st.session_state.program_name = program
+        st.session_state.entries.append({
+            "id": next_id(),
+            "filename": fname,
+            "description": description or "",
+            "segments": typed,  # <— pour rendu coloré stable
+        })
+        st.success("Entry added.")
+
 
 st.subheader("KISS File size Calculator")
 bc1, bc2, bc3, bc4, bc5 = st.columns([1,1,1,1,2])

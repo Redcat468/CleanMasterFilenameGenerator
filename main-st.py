@@ -141,6 +141,29 @@ file_formats, video_formats = load_config()
 
 st.title("Clean Masters Filename Generator")
 
+with st.form("form"):
+    col1, col2, col3 = st.columns([1,1,1])
+    program = col1.text_input("PROGRAM NAME *", value=st.session_state.program_name, key="program_name_input")
+    version = col2.text_input("VERSION", key="version")
+    form_date = col3.date_input("DATE *", value=date.today(), format="YYYY-MM-DD", key="form_date")
+
+    col4, col5, col6 = st.columns([1,1,1])
+    language = col4.selectbox("LANGUAGE *", options=[c for c,_ in LANGUAGES], format_func=lambda x: dict(LANGUAGES)[x])
+    subtitles = col5.selectbox("SUBTITLES *", options=[c for c,_ in SUBTITLES], format_func=lambda x: dict(SUBTITLES).get(x, x))
+    fileformat = col6.selectbox("FILE FORMAT *", options=file_formats)
+
+    col7, col8, col9 = st.columns([1,1,1])
+    videoformat = col7.selectbox("VIDEO FORMAT *", options=video_formats)
+    videoaspect = col8.text_input("VIDEO ASPECT (ex: 1.85 ou 1,85)", value="")
+    videores = col9.text_input("VIDEO RESOLUTION (ex: 1920x1080)", value="")
+
+    col10, col11, col12 = st.columns([1,1,1])
+    cadence = col10.selectbox("CADENCE", options=CADENCES, index=0)
+    audioformat = col11.selectbox("AUDIO FORMAT *", options=[c for c,_ in AUDIO_FORMATS], format_func=lambda x: dict(AUDIO_FORMATS)[x] + f" ({x})")
+    audiocodec = col12.text_input("AUDIO CODEC", value="")
+
+    description = st.text_input("Description", value="")
+
 submitted = st.form_submit_button("Add Filename entry")
 if submitted:
     required_ok = all([program, form_date, language, subtitles, fileformat, videoformat, audioformat])
@@ -205,104 +228,67 @@ st.subheader("Entries")
 if not st.session_state.entries:
     st.caption("Aucune entrée pour l’instant.")
 else:
-    # Couleurs fixes par type de paramètre
-    TYPE_COLORS = {
-        "PROGRAM":      "#1565C0",
-        "VERSION":      "#6A1B9A",
-        "LANG_SUB":     "#2E7D32",
-        "FILE_FORMAT":  "#EF6C00",
-        "VIDEO_FORMAT": "#00838F",
-        "VIDEO_ASPECT": "#AD1457",
-        "RESOLUTION":   "#283593",
-        "CADENCE":      "#6D4C41",
-        "AUDIO_FORMAT": "#C62828",
-        "AUDIO_CODEC":  "#455A64",
-        "DATE":         "#5D4037",
-    }
-    # Ordre canonique (fallback si ancienne entrée sans segments typés)
-    ORDER = ["PROGRAM","VERSION","LANG_SUB","FILE_FORMAT","VIDEO_FORMAT",
-             "VIDEO_ASPECT","RESOLUTION","CADENCE","AUDIO_FORMAT","AUDIO_CODEC","DATE"]
+    # Couleurs pour chaque segment (texte uniquement)
+    PALETTE = ["#1565C0", "#2E7D32", "#AD1457", "#EF6C00", "#6A1B9A",
+               "#00838F", "#C62828", "#283593", "#6D4C41", "#2E7D32"]
 
     to_delete = []
     for i, e in enumerate(st.session_state.entries):
+        # Ligne unique : [Nom coloré + Copier] | [Description] | [Supprimer]
         col_name, col_desc, col_del = st.columns([6, 4, 1])
 
-        # --- Col 1 : Nom coloré + bouton Copier (collés) ---
+        # --- Col 1 : Nom coloré + bouton Copier (vraiment côte à côte) ---
         with col_name:
-            # Prépare segments (typés si dispo, sinon fallback par position)
-            if "segments" in e and isinstance(e["segments"], list):
-                seglist = e["segments"]
-            else:
-                raw = e["filename"].split("_")
-                seglist = list(zip(ORDER[:len(raw)], raw))
-
-            colored_parts = []
-            for t, val in seglist:
-                color = TYPE_COLORS.get(t, "#111")
-                colored_parts.append(
-                    f"<span style='color:{color};font-weight:600'>{html.escape(val)}</span>"
+            segs = e["filename"].split("_")
+            colored = []
+            for idx, seg in enumerate(segs):
+                color = PALETTE[idx % len(PALETTE)]
+                colored.append(
+                    f"<span style='color:{color};font-weight:600'>{html.escape(seg)}</span>"
                 )
-            colored_html = "_".join(colored_parts)
+            colored_html = "_".join(colored)
 
             btn_id = f"copybtn_{e['id']}"
-            copy_text = json.dumps(e["filename"])  # sécurisé
+            copy_text = json.dumps(e["filename"])  # sûr pour JS
 
-            # HTML + CSS + JS (animation pulse + feedback texte discret)
             components.html(
                 f"""
-                <style>
-                  .copy-btn {{
-                    padding:6px 12px; border:1px solid #999; border-radius:8px; background:#f8f9fa; cursor:pointer;
-                    transition: background 0.25s, transform 0.08s;
-                    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-                  }}
-                  .copy-btn:active {{ transform: scale(0.98); }}
-                  .copied-anim {{ animation: pulseCopy 700ms ease; }}
-                  @keyframes pulseCopy {{
-                    0%   {{ background:#f8f9fa; }}
-                    40%  {{ background:#c8f7d0; }}
-                    100% {{ background:#f8f9fa; }}
-                  }}
-                </style>
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;min-width:0;">
-                  <div style="font-family:monospace;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="font-family:monospace;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">
                     {colored_html}
                   </div>
-                  <button id="{btn_id}" class="copy-btn" aria-label="Copier">Copier</button>
+                  <button id="{btn_id}"
+                          style="padding:6px 12px;border:1px solid #999;border-radius:8px;background:#f8f9fa;cursor:pointer;white-space:nowrap;">
+                    Copier
+                  </button>
                 </div>
                 <script>
                   (function(){{
-                    var btn = document.getElementById("{btn_id}");
-                    if(!btn) return;
-                    btn.addEventListener("click", function(){{
-                      navigator.clipboard.writeText({copy_text}).then(function(){{
-                        btn.classList.remove("copied-anim");
-                        void btn.offsetWidth; // reset animation
-                        btn.classList.add("copied-anim");
-                        var old = btn.textContent;
-                        btn.textContent = "Copié ✓";
-                        setTimeout(function(){{ btn.textContent = "Copier"; }}, 1000);
+                    const btn = document.getElementById("{btn_id}");
+                    if (btn) {{
+                      btn.addEventListener('click', function() {{
+                        navigator.clipboard.writeText({copy_text});
                       }});
-                    }});
+                    }}
                   }})();
                 </script>
                 """,
-                height=46,
+                height=40,
             )
 
-        # --- Col 2 : Description (placeholder, max 50, sans étiquette) ---
+        # --- Col 2 : Description (pas d’étiquette, placeholder, max 50) ---
         with col_desc:
             new_desc = st.text_input(
                 label="",
-                value=e.get("description",""),
+                value=e["description"],
                 key=f"desc_{e['id']}",
                 max_chars=50,
-                placeholder="Description (max 50)",
+                placeholder="Description (max 50 caractères)",
                 label_visibility="collapsed",
             )
             st.session_state.entries[i]["description"] = new_desc
 
-        # --- Col 3 : Supprimer (même ligne) ---
+        # --- Col 3 : Supprimer ---
         with col_del:
             if st.button("Supprimer", key=f"del_{e['id']}"):
                 to_delete.append(i)
@@ -311,6 +297,8 @@ else:
         for idx in reversed(to_delete):
             st.session_state.entries.pop(idx)
         st.rerun()
+
+
 
 # Export PDF
 st.divider()

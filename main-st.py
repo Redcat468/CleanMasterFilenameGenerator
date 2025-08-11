@@ -200,25 +200,29 @@ else:
     # Créer un DataFrame pour afficher les entrées dans un tableau
     df_entries = pd.DataFrame(st.session_state.entries)
 
-    # Afficher le tableau avec Streamlit
-    st.table(df_entries[["id", "filename", "description"]])
-
-    # Mettre à jour les descriptions et ajouter les boutons
-    for i, e in enumerate(st.session_state.entries):
-        new_desc = st.text_input("Description", value=e["description"], key=f"desc_{i}", max_chars=20)
-        st.session_state.entries[i]["description"] = new_desc
-
-        # Bouton copier à droite du nom
-        components.html(
-            f"""<button onclick="navigator.clipboard.writeText({repr(e['filename'])});"
+    # Ajouter des colonnes pour l'édition de la description et les boutons
+    df_entries["description"] = df_entries.apply(
+        lambda row: st.text_input("Description", value=row["description"], key=f"desc_{row['id']}", max_chars=20), axis=1
+    )
+    df_entries["copier"] = df_entries.apply(
+        lambda row: components.html(
+            f"""<button onclick="navigator.clipboard.writeText({repr(row['filename'])});"
                  style="padding:6px 10px;border:1px solid #888;border-radius:6px;background:#f8f9fa;cursor:pointer;">
                  Copier
                </button>""",
             height=40
-        )
+        ), axis=1
+    )
+    df_entries["supprimer"] = df_entries.apply(
+        lambda row: st.button("Supprimer", key=f"del_{row['id']}"), axis=1
+    )
 
-        # Bouton supprimer
-        if st.button("Supprimer", key=f"del_{i}"):
+    # Afficher le tableau avec Streamlit
+    st.table(df_entries[["id", "filename", "description", "copier", "supprimer"]])
+
+    # Gérer la suppression des entrées
+    for i, e in enumerate(st.session_state.entries):
+        if st.session_state.entries[i]["supprimer"]:
             st.session_state.entries.pop(i)
             st.rerun()
 

@@ -31,7 +31,6 @@ A tiny Streamlit app to **simplify filename nomenclature** for deliveries of **m
 * **PDF export**
 
   * Neat “card” layout with subtle shadow.
-  * Optional header logo (`logo.png`).
   * Per-row file icon (`file-icon.png`) with the **ID under the icon**.
   * Compact card height (no big empty gap).
 

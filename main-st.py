@@ -179,7 +179,7 @@ def build_typed_segments(program, version, form_date, language, subtitles,
 
 
 # -------- UI --------
-st.set_page_config(page_title="Clean Masters Filename Generator", layout="wide")
+st.set_page_config(page_title="Clean Masters Filename Generator")
 ensure_state()
 file_formats, video_formats = load_config()
 

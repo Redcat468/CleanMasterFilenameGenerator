@@ -222,6 +222,11 @@ def build_typed_segments(program, version, form_date, language, subtitles,
     videoaspect_clean = re.sub(r"[.,]", "", videoaspect or "")
     videores_clean = sanitize(videores)
     audiocodec_clean = sanitize(audiocodec)
+    audio_code = (audioformat or "").strip().upper()
+    if audio_code and audio_code != "NOAUDIO":
+        typed.append(("AUDIO_FORMAT", audio_code))
+        if audiocodec_clean:
+            typed.append(("AUDIO_CODEC",  audiocodec_clean))
 
     if subtitles == "NOSUB":
         sub_seg = "NOSUB"

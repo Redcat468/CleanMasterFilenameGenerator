@@ -58,21 +58,34 @@ def build_filename(program, version, dt, language, subtitles, fileformat, videof
     videores = sanitize(videores)
     date_code = dt.strftime("%y%m%d") if isinstance(dt, date) else datetime.now().strftime("%y%m%d")
     videoaspect = re.sub(r"[.,]", "", videoaspect_raw or "")
+
+    # Subtitles
     if subtitles == "NOSUB":
         sub_seg = "NOSUB"
     elif subtitles:
         sub_seg = f"ST{subtitles}"
     else:
         sub_seg = ""
+
     segments = [program]
-    if version: segments.append(version)
+    if version:
+        segments.append(version)
+
     lang_seg = f"{language}-{sub_seg}" if sub_seg else language
     segments.append(lang_seg)
+
     segments += [fileformat, videoformat, videoaspect, videores, cadence]
-    if audioformat != "NOAUDIO":
-        segments.append(audioformat)
+
+    # Skip audio format if set to NOAUDIO
+    if (audioformat or "").strip().upper() != "NOAUDIO":
+        if audioformat:
+            segments.append(audioformat)
+
+    # Codec et date
     segments += [audiocodec, date_code]
+
     return "_".join(seg for seg in segments if seg)
+
 
 def ensure_state():
     for k, v in (("entries", []), ("id_counter", 0), ("program_name", "")):

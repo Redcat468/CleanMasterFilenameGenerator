@@ -37,7 +37,7 @@ LANGUAGES = [
 ]
 SUBTITLES = LANGUAGES + [("NOSUB", "NoSub")]
 CADENCES = ["", "23.976", "24", "25", "29.97", "30", "50", "59.94"]
-AUDIO_FORMATS = [("20","Stereo"), ("51","Surround"), ("71","7.1 Surround")]
+AUDIO_FORMATS = [(""),("20","Stereo"), ("51","Surround"), ("71","7.1 Surround")]
 
 
 def renumber_entries():

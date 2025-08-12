@@ -407,7 +407,6 @@ LICENSE_URL  = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
 import streamlit as st
 
 st.markdown(
-    f"""
     <style>
       /* espace pour ne pas recouvrir le contenu par le footer */
       .block-container {{ padding-bottom: 72px; }}
@@ -445,3 +444,4 @@ st.markdown(
       @media (max-width: 640px) {{
         .block-container {{ padding-bottom: 88px; }}
         .app-footer {{ font-size: 12
+)

@@ -37,7 +37,7 @@ LANGUAGES = [
 ]
 SUBTITLES = LANGUAGES + [("NOSUB", "NoSub")]
 CADENCES = ["", "23.976", "24", "25", "29.97", "30", "50", "59.94"]
-AUDIO_FORMATS = ["",("20","Stereo"), ("51","Surround"), ("71","7.1 Surround")]
+AUDIO_FORMATS = [("20", "Stereo"), ("51", "Surround"), ("71", "7.1 Surround"), ("NOAUDIO", "No Audio Track")]
 
 
 def renumber_entries():
@@ -68,7 +68,10 @@ def build_filename(program, version, dt, language, subtitles, fileformat, videof
     if version: segments.append(version)
     lang_seg = f"{language}-{sub_seg}" if sub_seg else language
     segments.append(lang_seg)
-    segments += [fileformat, videoformat, videoaspect, videores, cadence, audioformat, audiocodec, date_code]
+    segments += [fileformat, videoformat, videoaspect, videores, cadence]
+    if audioformat != "NOAUDIO":
+        segments.append(audioformat)
+    segments += [audiocodec, date_code]
     return "_".join(seg for seg in segments if seg)
 
 def ensure_state():

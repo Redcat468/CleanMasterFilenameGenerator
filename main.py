@@ -31,7 +31,7 @@ def index():
     ]
     SUBTITLES = LANGUAGES + [('NOSUB','NoSub')]
     CADENCES = ['', '23.976', '24', '25', '29.97', '30', '50', '59.94']
-    AUDIO_FORMATS = [('20','Stereo'), ('51','Surround')]
+    AUDIO_FORMATS = [('20','Stereo'), ('51','Surround 5.1')], ('71','Surround 7.1')]
 
     return render_template('index.html',
         languages=LANGUAGES,

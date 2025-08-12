@@ -37,7 +37,7 @@ LANGUAGES = [
 ]
 SUBTITLES = LANGUAGES + [("NOSUB", "NoSub")]
 CADENCES = ["", "23.976", "24", "25", "29.97", "30", "50", "59.94"]
-AUDIO_FORMATS = [("20","Stereo"), ("51","Surround")]
+AUDIO_FORMATS = [("20","Stereo"), ("51","Surround"), ("71","7.1 Surround")]
 
 
 def renumber_entries():
@@ -447,15 +447,35 @@ if st.session_state.entries:
 
 
 with st.expander("Quick file size Calculator"):
-    bc1, bc2, bc3, bc4, bc5 = st.columns([1,1,1,1,2])
-    dur_h = bc1.number_input("Heures", min_value=0, step=1, value=0)
-    dur_m = bc2.number_input("Minutes", min_value=0, max_value=59, step=1, value=0)
-    dur_s = bc3.number_input("Secondes", min_value=0, max_value=59, step=1, value=0)
-    bitrate_mbps = bc4.number_input("Débit (Mbps)", min_value=0.0, step=0.1, value=25.0)
-    if bc5.button("Compute"):
+    # Harmonise la hauteur des widgets et aligne le bouton en bas
+    st.markdown("""
+    <style>
+      /* Hauteur des champs numériques */
+      div[data-testid="stNumberInput"] input { height: 40px; }
+      div[data-testid="stNumberInput"] label { margin-bottom: 2px; }
+      /* Hauteur du bouton Compute */
+      div.stButton > button { height: 40px; padding: 0 14px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    c1, c2, c3, c4, c5 = st.columns([1, 1, 1, 1, 0.9], vertical_alignment="bottom")
+
+    with c1:
+      dur_h = st.number_input("Heures", min_value=0, step=1, value=0)
+    with c2:
+      dur_m = st.number_input("Minutes", min_value=0, max_value=59, step=1, value=0)
+    with c3:
+      dur_s = st.number_input("Secondes", min_value=0, max_value=59, step=1, value=0)
+    with c4:
+      bitrate_mbps = st.number_input("Débit (Mbps)", min_value=0.0, step=0.1, value=25.0)
+    with c5:
+      do_compute = st.button("Compute")
+
+    if do_compute:
         total_sec = int(dur_h)*3600 + int(dur_m)*60 + int(dur_s)
         mb, gb = bitrate_h264_high(bitrate_mbps, total_sec)
         st.info(f"Taille estimée : ~{mb:.2f} MB ({gb:.2f} GB)")
+
 
 
 # --- Footer (fixed bottom) ---

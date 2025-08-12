@@ -447,7 +447,7 @@ if st.session_state.entries:
 
 
 with st.expander("Quick file size Calculator"):
-    # Harmonise la hauteur des widgets et aligne le bouton en bas
+    # Harmonise la hauteur des widgets et du bouton
     st.markdown("""
     <style>
       /* Hauteur des champs numériques */
@@ -458,23 +458,28 @@ with st.expander("Quick file size Calculator"):
     </style>
     """, unsafe_allow_html=True)
 
-    c1, c2, c3, c4, c5 = st.columns([1, 1, 1, 1, 0.9], vertical_alignment="bottom")
+    # Utilise un form pour un submit propre et un spacer pour l'alignement vertical
+    with st.form("filesize_form"):
+        c1, c2, c3, c4, c5 = st.columns([1, 1, 1, 1, 0.9])
 
-    with c1:
-      dur_h = st.number_input("Heures", min_value=0, step=1, value=0)
-    with c2:
-      dur_m = st.number_input("Minutes", min_value=0, max_value=59, step=1, value=0)
-    with c3:
-      dur_s = st.number_input("Secondes", min_value=0, max_value=59, step=1, value=0)
-    with c4:
-      bitrate_mbps = st.number_input("Débit (Mbps)", min_value=0.0, step=0.1, value=25.0)
-    with c5:
-      do_compute = st.button("Compute")
+        with c1:
+            dur_h = st.number_input("Heures", min_value=0, step=1, value=0)
+        with c2:
+            dur_m = st.number_input("Minutes", min_value=0, max_value=59, step=1, value=0)
+        with c3:
+            dur_s = st.number_input("Secondes", min_value=0, max_value=59, step=1, value=0)
+        with c4:
+            bitrate_mbps = st.number_input("Débit (Mbps)", min_value=0.0, step=0.1, value=25.0)
+        with c5:
+            # Spacer pour aligner le bouton sur la ligne des inputs
+            st.markdown('<div style="height:22px"></div>', unsafe_allow_html=True)
+            do_compute = st.form_submit_button("Compute")
 
-    if do_compute:
-        total_sec = int(dur_h)*3600 + int(dur_m)*60 + int(dur_s)
-        mb, gb = bitrate_h264_high(bitrate_mbps, total_sec)
-        st.info(f"Taille estimée : ~{mb:.2f} MB ({gb:.2f} GB)")
+        if do_compute:
+            total_sec = int(dur_h)*3600 + int(dur_m)*60 + int(dur_s)
+            mb, gb = bitrate_h264_high(bitrate_mbps, total_sec)
+            st.info(f"Taille estimée : ~{mb:.2f} MB ({gb:.2f} GB)")
+
 
 
 

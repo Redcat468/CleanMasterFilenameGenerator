@@ -104,29 +104,57 @@ def pdf_bytes(entries, program):
         c.setStrokeColorRGB(0.6, 0.6, 0.8)
         c.roundRect(x, y - card_h, card_w, card_h, 8, fill=False, stroke=True)
 
-        # icône fichier
-        icon_x, icon_y = x + pad, y - pad - 20
-        c.setFillColorRGB(0.7, 0.7, 0.7)
-        c.rect(icon_x, icon_y, 14, 18, fill=True, stroke=False)
-        p = c.beginPath()
-        p.moveTo(icon_x + 9, icon_y + 18)
-        p.lineTo(icon_x + 14, icon_y + 18)
-        p.lineTo(icon_x + 14, icon_y + 13)
-        p.close()
-        c.setFillColorRGB(0.6, 0.6, 0.6)
-        c.drawPath(p, fill=1, stroke=0)
-        c.setFillColorRGB(0, 0, 0)
+        # --- Icône "file + play" vectorielle (flat & stylée) ---
+        icon_x, icon_y = x + pad, y - pad - 22  # ajusté pour h=20
+        w_i, h_i = 16, 20
+        c.saveState()
 
-        tx = icon_x + 14 + pad
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(tx, y - pad - 4, (e.get("filename",""))[:50])
-        c.setFont("Helvetica-Oblique", 10)
-        c.drawString(tx, y - pad - 20, (e.get("description",""))[:60])
-        c.setFont("Helvetica", 9)
-        c.setFillColorRGB(0.4, 0.4, 0.6)
-        c.drawString(tx, y - pad - 34, f"ID: {e.get('id','')}")
-        c.setFillColorRGB(0,0,0)
-        y -= (card_h + pad)
+        # Ombre légère (fake shadow)
+        c.setFillColorRGB(0.85, 0.86, 0.90)
+        c.roundRect(icon_x + 0.6, icon_y - 0.6, w_i, h_i, 3, fill=True, stroke=False)
+
+        # Corps du fichier (anthracite)
+        c.setFillColorRGB(0.18, 0.20, 0.25)
+        c.roundRect(icon_x, icon_y, w_i, h_i, 3, fill=True, stroke=False)
+
+        # Coin plié (dog-ear)
+        p = c.beginPath()
+        p.moveTo(icon_x + w_i - 6, icon_y + h_i)
+        p.lineTo(icon_x + w_i,     icon_y + h_i)
+        p.lineTo(icon_x + w_i,     icon_y + h_i - 6)
+        p.close()
+        c.setFillColorRGB(0.12, 0.13, 0.17)
+        c.drawPath(p, fill=1, stroke=0)
+
+        # Liseré du pli (fin trait blanc)
+        c.setStrokeColorRGB(1, 1, 1)
+        c.setLineWidth(0.5)
+        c.line(icon_x + w_i - 6, icon_y + h_i, icon_x + w_i, icon_y + h_i - 6)
+
+        # Badge "PLAY" (rond jaune)
+        badge_r  = 6
+        badge_cx = icon_x + w_i/2 - 1
+        badge_cy = icon_y + h_i/2 - 1
+        c.setFillColorRGB(1.00, 0.80, 0.05)  # jaune doux
+        c.circle(badge_cx, badge_cy, badge_r, fill=1, stroke=0)
+
+        # Triangle "play" blanc (centré)
+        tp = c.beginPath()
+        tp.moveTo(badge_cx - 2.0, badge_cy - 3.0)
+        tp.lineTo(badge_cx + 3.8, badge_cy)
+        tp.lineTo(badge_cx - 2.0, badge_cy + 3.0)
+        tp.close()
+        c.setFillColorRGB(1, 1, 1)
+        c.drawPath(tp, fill=1, stroke=0)
+
+        # Motif "underscore" blanc en bas
+        c.roundRect(icon_x + 3, icon_y + 3, w_i - 6, 1.3, 0.6, fill=True, stroke=False)
+
+        c.restoreState()
+
+        # Texte à droite de l’icône
+        tx = icon_x + w_i + pad
+
 
     c.save()
     buf.seek(0)
@@ -383,7 +411,7 @@ if st.session_state.entries:
 
 
 
-with st.expander("KISS File size Calculator"):
+with st.expander("Quick file size Calculator"):
     bc1, bc2, bc3, bc4, bc5 = st.columns([1,1,1,1,2])
     dur_h = bc1.number_input("Heures", min_value=0, step=1, value=0)
     dur_m = bc2.number_input("Minutes", min_value=0, max_value=59, step=1, value=0)

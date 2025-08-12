@@ -1,3 +1,5 @@
+<img src="logo.png" alt="App Logo" width="100">
+
 # Clean Masters Filename Generator
 
 **Purpose**

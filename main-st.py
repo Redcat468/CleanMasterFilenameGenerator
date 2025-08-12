@@ -356,6 +356,7 @@ with st.expander("KISS File size Calculator"):
     dur_m = bc2.number_input("Minutes", min_value=0, max_value=59, step=1, value=0)
     dur_s = bc3.number_input("Secondes", min_value=0, max_value=59, step=1, value=0)
     bitrate_mbps = bc4.number_input("Débit (Mbps)", min_value=0.0, step=0.1, value=25.0)
+    bc5.button("Calculer")
     if bc5.button("Calculer"):
         total_sec = int(dur_h)*3600 + int(dur_m)*60 + int(dur_s)
         mb, gb = bitrate_h264_high(bitrate_mbps, total_sec)

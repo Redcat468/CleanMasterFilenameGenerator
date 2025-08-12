@@ -79,10 +79,11 @@ def pdf_bytes(entries, program):
     c = canvas.Canvas(buf, pagesize=A4)
     w, h = A4
 
-    # Titre avec logo
+    # Titre avec logo (si présent)
     y = h - 80
-    logo_path = "logo.png"  # Assurez-vous que le chemin du logo est correct
-    c.drawImage(logo_path, 40, y - 20, width=50, height=50, mask='auto')
+    logo_path = "logo.png"
+    if os.path.exists(logo_path):
+        c.drawImage(logo_path, 40, y - 20, width=50, height=50, mask='auto', preserveAspectRatio=True)
     c.setFont("Helvetica-Bold", 16)
     c.drawString(100, y, f"EXPORT LIST {sanitize(program)} {today}")
     y -= 40
@@ -90,10 +91,19 @@ def pdf_bytes(entries, program):
     # Cartes
     card_h = 70
     pad = 12
+
+    # Icône fichier (image externe)
+    icon_path = "file-icon.png"
+    icon_w, icon_h = 18, 18  # taille d’affichage de l’icône
+
     for e in entries:
         if y - card_h < 50:
             c.showPage()
             y = h - 80
+            # Réafficher le titre sur la nouvelle page si besoin
+            c.setFont("Helvetica-Bold", 16)
+            c.drawString(40, y, f"EXPORT LIST {sanitize(program)} {today}")
+            y -= 40
 
         x = 40
         card_w = w - 2 * x
@@ -104,61 +114,36 @@ def pdf_bytes(entries, program):
         c.setStrokeColorRGB(0.6, 0.6, 0.8)
         c.roundRect(x, y - card_h, card_w, card_h, 8, fill=False, stroke=True)
 
-        # --- Icône "file + play" vectorielle (flat & stylée) ---
-        icon_x, icon_y = x + pad, y - pad - 22  # ajusté pour h=20
-        w_i, h_i = 16, 20
-        c.saveState()
-
-        # Ombre légère (fake shadow)
-        c.setFillColorRGB(0.85, 0.86, 0.90)
-        c.roundRect(icon_x + 0.6, icon_y - 0.6, w_i, h_i, 3, fill=True, stroke=False)
-
-        # Corps du fichier (anthracite)
-        c.setFillColorRGB(0.18, 0.20, 0.25)
-        c.roundRect(icon_x, icon_y, w_i, h_i, 3, fill=True, stroke=False)
-
-        # Coin plié (dog-ear)
-        p = c.beginPath()
-        p.moveTo(icon_x + w_i - 6, icon_y + h_i)
-        p.lineTo(icon_x + w_i,     icon_y + h_i)
-        p.lineTo(icon_x + w_i,     icon_y + h_i - 6)
-        p.close()
-        c.setFillColorRGB(0.12, 0.13, 0.17)
-        c.drawPath(p, fill=1, stroke=0)
-
-        # Liseré du pli (fin trait blanc)
-        c.setStrokeColorRGB(1, 1, 1)
-        c.setLineWidth(0.5)
-        c.line(icon_x + w_i - 6, icon_y + h_i, icon_x + w_i, icon_y + h_i - 6)
-
-        # Badge "PLAY" (rond jaune)
-        badge_r  = 6
-        badge_cx = icon_x + w_i/2 - 1
-        badge_cy = icon_y + h_i/2 - 1
-        c.setFillColorRGB(1.00, 0.80, 0.05)  # jaune doux
-        c.circle(badge_cx, badge_cy, badge_r, fill=1, stroke=0)
-
-        # Triangle "play" blanc (centré)
-        tp = c.beginPath()
-        tp.moveTo(badge_cx - 2.0, badge_cy - 3.0)
-        tp.lineTo(badge_cx + 3.8, badge_cy)
-        tp.lineTo(badge_cx - 2.0, badge_cy + 3.0)
-        tp.close()
-        c.setFillColorRGB(1, 1, 1)
-        c.drawPath(tp, fill=1, stroke=0)
-
-        # Motif "underscore" blanc en bas
-        c.roundRect(icon_x + 3, icon_y + 3, w_i - 6, 1.3, 0.6, fill=True, stroke=False)
-
-        c.restoreState()
+        # Icône fichier depuis file-icon.png (fallback si manquant)
+        icon_x, icon_y = x + pad, y - pad - 20
+        if os.path.exists(icon_path):
+            c.drawImage(icon_path, icon_x, icon_y, width=icon_w, height=icon_h,
+                        mask='auto', preserveAspectRatio=True)
+        else:
+            # Fallback simple pour ne pas planter si le fichier n'est pas là
+            c.setFillColorRGB(1.0, 0.84, 0.0)  # jaune
+            c.rect(icon_x, icon_y, icon_w, icon_h, fill=True, stroke=False)
+        c.setFillColorRGB(0, 0, 0)
 
         # Texte à droite de l’icône
-        tx = icon_x + w_i + pad
+        tx = icon_x + icon_w + pad
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(tx, y - pad - 4, (e.get("filename", ""))[:50])
 
+        c.setFont("Helvetica-Oblique", 10)
+        c.drawString(tx, y - pad - 20, (e.get("description", ""))[:60])
+
+        c.setFont("Helvetica", 9)
+        c.setFillColorRGB(0.4, 0.4, 0.6)
+        c.drawString(tx, y - pad - 34, f"ID: {e.get('id', '')}")
+        c.setFillColorRGB(0, 0, 0)
+
+        y -= (card_h + pad)
 
     c.save()
     buf.seek(0)
     return buf.getvalue(), f"{sanitize(program)}_{today}_export_list.pdf"
+
 
 def bitrate_h264_high(mbps: float, total_sec: int):
     size_mb = (mbps * total_sec) / 8

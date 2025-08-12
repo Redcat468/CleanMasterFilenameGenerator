@@ -3,6 +3,7 @@
 # Clean Masters Filename Generator
 
 **Purpose**
+
 A tiny Python / Streamlit app to **simplify filename nomenclature** for deliveries of **masters** and other **post-production exports** (PAD, broadcast, platforms, QC, archive). It enforces consistent, readable names and avoids human error.
 
 **Live app:** [https://cmf.cairnstudios.fr](https://cmf.cairnstudios.fr)

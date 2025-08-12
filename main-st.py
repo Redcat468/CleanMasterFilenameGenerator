@@ -40,50 +40,36 @@ CADENCES = ["", "23.976", "24", "25", "29.97", "30", "50", "59.94"]
 AUDIO_FORMATS = [("20", "Stereo"), ("51", "Surround"), ("71", "7.1 Surround"), ("NOAUDIO", "No Audio Track")]
 
 
+def renumber_entries():
+    """Force les IDs à 01, 02, 03… selon l’ordre actuel de st.session_state.entries."""
+    for idx, entry in enumerate(st.session_state.entries):
+        entry["id"] = f"{idx+1:02d}"
+
+def sanitize(text: str) -> str:
+    if not text: return ""
+    tmp = re.sub(r"[^A-Za-z0-9\s]+", "", text)
+    return re.sub(r"_+", "_", tmp.strip().replace(" ", "_"))
+
 def build_filename(program, version, dt, language, subtitles, fileformat, videoformat,
                    videoaspect_raw, videores, cadence, audioformat, audiocodec):
-    program    = sanitize(program)
-    version    = sanitize(version)
+    program = sanitize(program)
+    version = sanitize(version)
     audiocodec = sanitize(audiocodec)
-    videores   = sanitize(videores)
-
-    # Date YYMMDD
+    videores = sanitize(videores)
     date_code = dt.strftime("%y%m%d") if isinstance(dt, date) else datetime.now().strftime("%y%m%d")
-
-    # Aspect en chiffres (1.85 / 1,85 -> 185)
     videoaspect = re.sub(r"[.,]", "", videoaspect_raw or "")
-
-    # Subtitles -> ST<code> sauf NOSUB
     if subtitles == "NOSUB":
         sub_seg = "NOSUB"
     elif subtitles:
         sub_seg = f"ST{subtitles}"
     else:
         sub_seg = ""
-
     segments = [program]
-    if version:
-        segments.append(version)
-
+    if version: segments.append(version)
     lang_seg = f"{language}-{sub_seg}" if sub_seg else language
     segments.append(lang_seg)
-
-    segments += [fileformat, videoformat, videoaspect, videores, cadence]
-
-    # --- Audio ---
-    audio_code = (audioformat or "").strip().upper()
-    if audio_code and audio_code != "NOAUDIO":
-        segments.append(audio_code)
-        if audiocodec:
-            segments.append(audiocodec)
-    # Si tu veux garder le codec même sans piste audio (peu logique), déplace l'ajout d'audiocodec hors du if ci-dessus.
-
-    # Date en dernier
-    segments.append(date_code)
-
+    segments += [fileformat, videoformat, videoaspect, videores, cadence, audioformat, audiocodec, date_code]
     return "_".join(seg for seg in segments if seg)
-
-
 
 def ensure_state():
     for k, v in (("entries", []), ("id_counter", 0), ("program_name", "")):
@@ -222,11 +208,6 @@ def build_typed_segments(program, version, form_date, language, subtitles,
     videoaspect_clean = re.sub(r"[.,]", "", videoaspect or "")
     videores_clean = sanitize(videores)
     audiocodec_clean = sanitize(audiocodec)
-    audio_code = (audioformat or "").strip().upper()
-    if audio_code and audio_code != "NOAUDIO":
-        typed.append(("AUDIO_FORMAT", audio_code))
-        if audiocodec_clean:
-            typed.append(("AUDIO_CODEC",  audiocodec_clean))
 
     if subtitles == "NOSUB":
         sub_seg = "NOSUB"

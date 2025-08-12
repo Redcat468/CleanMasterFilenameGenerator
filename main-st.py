@@ -79,7 +79,7 @@ def pdf_bytes(entries, program):
     c = canvas.Canvas(buf, pagesize=A4)
     w, h = A4
 
-    # Titre avec logo (si présent)
+    # Titre (avec logo si dispo)
     y = h - 80
     logo_path = "logo.png"
     if os.path.exists(logo_path):
@@ -88,19 +88,18 @@ def pdf_bytes(entries, program):
     c.drawString(100, y, f"EXPORT LIST {sanitize(program)} {today}")
     y -= 40
 
-    # Cartes
-    card_h = 70
-    pad = 12
-
-    # Icône fichier (image externe)
+    # Styles cartes + icône
+    card_h   = 78
+    pad      = 12
     icon_path = "file-icon.png"
-    icon_w, icon_h = 18, 18  # taille d’affichage de l’icône
+    icon_w, icon_h = 24, 24  # icône plus grande
 
     for e in entries:
-        if y - card_h < 50:
+        # Nouvelle page si besoin
+        if y - card_h < 60:
             c.showPage()
             y = h - 80
-            # Réafficher le titre sur la nouvelle page si besoin
+            # (titre simple sur nouvelle page)
             c.setFont("Helvetica-Bold", 16)
             c.drawString(40, y, f"EXPORT LIST {sanitize(program)} {today}")
             y -= 40
@@ -108,36 +107,48 @@ def pdf_bytes(entries, program):
         x = 40
         card_w = w - 2 * x
 
-        # flat card
-        c.setFillColorRGB(0.9, 0.95, 1.0)
-        c.roundRect(x, y - card_h, card_w, card_h, 8, fill=True, stroke=False)
-        c.setStrokeColorRGB(0.6, 0.6, 0.8)
-        c.roundRect(x, y - card_h, card_w, card_h, 8, fill=False, stroke=True)
+        # --- Ombre (offset) ---
+        c.setFillColorRGB(0.85, 0.87, 0.92)   # gris/bleu très clair (ombre)
+        c.roundRect(x + 2, y - card_h - 2, card_w, card_h, 10, fill=True, stroke=False)
 
-        # Icône fichier depuis file-icon.png (fallback si manquant)
-        icon_x, icon_y = x + pad, y - pad - 20
+        # --- Carte blanche moderne ---
+        c.setFillColorRGB(1, 1, 1)            # blanc
+        c.roundRect(x, y - card_h, card_w, card_h, 10, fill=True, stroke=False)
+        c.setStrokeColorRGB(0.85, 0.85, 0.90) # bordure subtile
+        c.roundRect(x, y - card_h, card_w, card_h, 10, fill=False, stroke=True)
+
+        # --- Icône fichier (image) ---
+        icon_x = x + pad
+        icon_y = y - pad - icon_h  # top aligné au padding
         if os.path.exists(icon_path):
             c.drawImage(icon_path, icon_x, icon_y, width=icon_w, height=icon_h,
                         mask='auto', preserveAspectRatio=True)
         else:
-            # Fallback simple pour ne pas planter si le fichier n'est pas là
-            c.setFillColorRGB(1.0, 0.84, 0.0)  # jaune
+            # Fallback simple
+            c.setFillColorRGB(1.0, 0.84, 0.0)
             c.rect(icon_x, icon_y, icon_w, icon_h, fill=True, stroke=False)
         c.setFillColorRGB(0, 0, 0)
 
-        # Texte à droite de l’icône
-        tx = icon_x + icon_w + pad
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(tx, y - pad - 4, (e.get("filename", ""))[:50])
-
-        c.setFont("Helvetica-Oblique", 10)
-        c.drawString(tx, y - pad - 20, (e.get("description", ""))[:60])
-
-        c.setFont("Helvetica", 9)
-        c.setFillColorRGB(0.4, 0.4, 0.6)
-        c.drawString(tx, y - pad - 34, f"ID: {e.get('id', '')}")
+        # --- ID sous l’icône, centré (sans 'ID :') ---
+        id_text = str(e.get('id', '')).strip()
+        if id_text:
+            c.setFont("Helvetica", 9)
+            c.setFillColorRGB(0.35, 0.40, 0.55)
+            tw = c.stringWidth(id_text, "Helvetica", 9)
+            cx = icon_x + icon_w / 2.0
+            c.drawString(cx - tw / 2.0, icon_y - 10, id_text)
         c.setFillColorRGB(0, 0, 0)
 
+        # --- Texte à droite de l’icône ---
+        tx = icon_x + icon_w + pad
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(tx, y - pad - 6, (e.get("filename", ""))[:80])
+
+        c.setFont("Helvetica-Oblique", 10)
+        c.setFillColorRGB(0.2, 0.2, 0.2)
+        c.drawString(tx, y - pad - 24, (e.get("description", ""))[:90])
+
+        c.setFillColorRGB(0, 0, 0)
         y -= (card_h + pad)
 
     c.save()

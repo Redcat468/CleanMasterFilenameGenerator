@@ -393,3 +393,55 @@ with st.expander("KISS File size Calculator"):
         total_sec = int(dur_h)*3600 + int(dur_m)*60 + int(dur_s)
         mb, gb = bitrate_h264_high(bitrate_mbps, total_sec)
         st.info(f"Taille estimée : ~{mb:.2f} MB ({gb:.2f} GB)")
+
+
+# --- Footer (fixed bottom) ---
+APP_NAME     = "Clean Masters Filename Generator"
+APP_VERSION  = "v1.0"
+REPO_URL     = "https://github.com/Redcat468/cleanmasterfilenamegenerator"
+AUTHOR_NAME  = "Félix Abt – Cairn Studios"
+AUTHOR_URL   = "https://github.com/Redcat468"
+LICENSE_NAME = "CC BY-NC-SA 4.0"
+LICENSE_URL  = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+
+import streamlit as st
+
+st.markdown(
+    f"""
+    <style>
+      /* espace pour ne pas recouvrir le contenu par le footer */
+      .block-container {{ padding-bottom: 72px; }}
+
+      .app-footer {{
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        z-index: 9999;
+        padding: 10px 16px;
+        background: rgba(255,255,255,0.9);
+        border-top: 1px solid rgba(0,0,0,0.08);
+        backdrop-filter: blur(6px);
+        font-size: 13px;
+        color: #222;
+      }}
+      /* Mode sombre (Streamlit) */
+      [data-theme="dark"] .app-footer {{
+        background: rgba(20,20,20,0.86);
+        border-top-color: rgba(255,255,255,0.08);
+        color: #ddd;
+      }}
+
+      .app-footer p {{
+        margin: 0;
+        text-align: center;
+      }}
+      .app-footer a {{
+        color: inherit;
+        text-decoration: none;
+        border-bottom: 1px dashed currentColor;
+      }}
+      .app-footer a:hover {{ border-bottom-style: solid; }}
+
+      /* Petits écrans */
+      @media (max-width: 640px) {{
+        .block-container {{ padding-bottom: 88px; }}
+        .app-footer {{ font-size: 12

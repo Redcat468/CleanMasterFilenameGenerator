@@ -407,6 +407,7 @@ LICENSE_URL  = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
 import streamlit as st
 
 st.markdown(
+    f"""
     <style>
       /* espace pour ne pas recouvrir le contenu par le footer */
       .block-container {{ padding-bottom: 72px; }}
@@ -443,5 +444,23 @@ st.markdown(
       /* Petits écrans */
       @media (max-width: 640px) {{
         .block-container {{ padding-bottom: 88px; }}
-        .app-footer {{ font-size: 12
+        .app-footer {{ font-size: 12px; padding: 12px; }}
+      }}
+    </style>
+
+    <footer class="app-footer">
+      <p xmlns:cc="http://creativecommons.org/ns#" xmlns:dct="http://purl.org/dc/terms/">
+        <a property="dct:title" rel="cc:attributionURL" href="{REPO_URL}" target="_blank" rel="noopener noreferrer">
+          {APP_NAME} {APP_VERSION}
+        </a>
+        by
+        <a rel="cc:attributionURL dct:creator" property="cc:attributionName" href="{AUTHOR_URL}" target="_blank" rel="noopener noreferrer">
+          {AUTHOR_NAME}
+        </a>
+        is licensed under
+        <a href="{LICENSE_URL}" target="_blank" rel="license noopener noreferrer">{LICENSE_NAME}</a>
+      </p>
+    </footer>
+    """,
+    unsafe_allow_html=True,
 )

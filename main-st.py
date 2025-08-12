@@ -6,7 +6,8 @@ from io import BytesIO
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 import json, html
-
+import base64
+from pathlib import Path
 
 
 # -------- Helpers --------
@@ -78,10 +79,12 @@ def pdf_bytes(entries, program):
     c = canvas.Canvas(buf, pagesize=A4)
     w, h = A4
 
-    # Titre
+    # Titre avec logo
     y = h - 80
+    logo_path = "logo.png"  # Assurez-vous que le chemin du logo est correct
+    c.drawImage(logo_path, 40, y - 20, width=50, height=50, mask='auto')
     c.setFont("Helvetica-Bold", 16)
-    c.drawString(40, y, f"EXPORT LIST {sanitize(program)} {today}")
+    c.drawString(100, y, f"EXPORT LIST {sanitize(program)} {today}")
     y -= 40
 
     # Cartes
@@ -183,10 +186,36 @@ st.set_page_config(page_title="Clean Masters Filename Generator", layout="wide")
 ensure_state()
 file_formats, video_formats = load_config()
 
-col1, col2 = st.columns([0.1, 0.9])
-with col1:
-    st.image("logo.png", use_column_width=True, output_format="auto", clamp=True, channels="RGB", caption=None)
-with col2:
+# Affichage logo + titre (logo centré verticalement, hauteur max)
+logo_path = Path("logo.png")
+if logo_path.exists():
+    logo_b64 = base64.b64encode(logo_path.read_bytes()).decode()
+    st.markdown(
+        f"""
+        <style>
+          .app-header {{
+            display:flex; align-items:center; gap:16px;
+            margin-bottom: 8px;
+          }}
+          .app-header img {{
+            max-height: 64px;   /* limite la hauteur du logo */
+            height: auto; width: auto;
+          }}
+          .app-header h1 {{
+            margin: 0; line-height: 1.1;
+          }}
+          @media (max-width: 640px) {{
+            .app-header img {{ max-height: 48px; }}
+          }}
+        </style>
+        <div class="app-header">
+          <img src="data:image/png;base64,{logo_b64}" alt="Logo">
+          <h1>Clean Masters Filename Generator</h1>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+else:
     st.title("Clean Masters Filename Generator")
 
 with st.form("form"):

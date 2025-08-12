@@ -185,7 +185,7 @@ file_formats, video_formats = load_config()
 
 col1, col2 = st.columns([0.1, 0.9])
 with col1:
-    st.image("logo.png", use_column_width=True)
+    st.image("logo.png", use_column_width=True, height=50)
 with col2:
     st.title("Clean Masters Filename Generator")
 

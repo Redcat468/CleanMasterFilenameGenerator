@@ -179,11 +179,11 @@ def build_typed_segments(program, version, form_date, language, subtitles,
 
 
 # -------- UI --------
-st.set_page_config(page_title="Clean Masters Filename Generator")
+st.set_page_config(page_title="Clean Masters Filename Generator", layout="wide")
 ensure_state()
 file_formats, video_formats = load_config()
 
-col1, col2 = st.columns([0.1, 0.9])
+col1, col2 = st.columns([0.1, 0.9], vertical_alignment="center")
 with col1:
     st.image("logo.png", use_column_width=True, output_format="auto", clamp=True, channels="RGB", caption=None)
 with col2:

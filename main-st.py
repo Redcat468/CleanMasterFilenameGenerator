@@ -39,6 +39,12 @@ SUBTITLES = LANGUAGES + [("NOSUB", "NoSub")]
 CADENCES = ["", "23.976", "24", "25", "29.97", "30", "50", "59.94"]
 AUDIO_FORMATS = [("20","Stereo"), ("51","Surround")]
 
+
+def renumber_entries():
+    """Force les IDs à 01, 02, 03… selon l’ordre actuel de st.session_state.entries."""
+    for idx, entry in enumerate(st.session_state.entries):
+        entry["id"] = f"{idx+1:02d}"
+
 def sanitize(text: str) -> str:
     if not text: return ""
     tmp = re.sub(r"[^A-Za-z0-9\s]+", "", text)
@@ -312,13 +318,13 @@ with st.form("form"):
             st.session_state.program_name = program
             st.session_state["id_counter"] = st.session_state.get("id_counter", 0) + 1
             st.session_state.entries.append({
-                "id": f"{st.session_state['id_counter']:02d}",
+                "id": "",  # placeholder, on renumérote juste après
                 "filename": fname,
                 "description": description or "",
-                "segments": typed,  # <<< IMPORTANT : couleurs stables par TYPE
+                "segments": typed,
             })
+            renumber_entries()
             st.success("Entry added.")
-
 
 
 
@@ -339,7 +345,7 @@ else:
         "AUDIO_CODEC":  "#455A64",
         "DATE":         "#4FC3F7",  # bleu clair fixe
     }
-
+    renumber_entries()
     to_delete = []
     for i, e in enumerate(st.session_state.entries):
         col_name, col_desc, col_del = st.columns([6, 4, 1])
@@ -426,12 +432,15 @@ else:
     if to_delete:
         for idx in reversed(to_delete):
             st.session_state.entries.pop(idx)
+        renumber_entries()
         st.rerun()
+
 
 
 # Export PDF
 st.divider()
 if st.session_state.entries:
+    renumber_entries()
     data, fname = pdf_bytes(st.session_state.entries, st.session_state.get("program_name", "PROGRAM"))
     st.download_button("Export PDF Report", data=data, file_name=fname, mime="application/pdf")
 

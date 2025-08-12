@@ -404,36 +404,36 @@ AUTHOR_URL   = "https://github.com/Redcat468"
 LICENSE_NAME = "CC BY-NC-SA 4.0"
 LICENSE_URL  = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
 
-import streamlit as st
+# --- Footer (non fixe, compatible thème sombre) ---
+APP_NAME     = "Clean Masters Filename Generator"
+APP_VERSION  = "v1.0"
+REPO_URL     = "https://github.com/Redcat468/cleanmasterfilenamegenerator"
+AUTHOR_NAME  = "Félix Abt – Cairn Studios"
+AUTHOR_URL   = "https://github.com/Redcat468"
+LICENSE_NAME = "CC BY-NC-SA 4.0"
+LICENSE_URL  = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
 
 st.markdown(
     f"""
     <style>
-      /* espace pour ne pas recouvrir le contenu par le footer */
-      .block-container {{ padding-bottom: 72px; }}
-
+      /* Footer non fixe : suit le flux normal de la page */
       .app-footer {{
-        position: fixed;
-        left: 0; right: 0; bottom: 0;
-        z-index: 9999;
-        padding: 10px 16px;
-        background: rgba(255,255,255,0.9);
+        margin-top: 24px;
+        padding: 12px 16px;
         border-top: 1px solid rgba(0,0,0,0.08);
-        backdrop-filter: blur(6px);
-        font-size: 13px;
-        color: #222;
-      }}
-      /* Mode sombre (Streamlit) */
-      [data-theme="dark"] .app-footer {{
-        background: rgba(20,20,20,0.86);
-        border-top-color: rgba(255,255,255,0.08);
-        color: #ddd;
+        color: inherit;           /* hérite du thème (texte) */
+        background: transparent;  /* pas de aplat : respecte le thème */
       }}
 
-      .app-footer p {{
-        margin: 0;
-        text-align: center;
+      /* Forcer la bordure adaptée au mode sombre si présent */
+      html[data-theme="dark"] .app-footer,
+      body[data-theme="dark"] .app-footer {{
+        border-top-color: rgba(255,255,255,0.12);
+        color: inherit;
+        background: transparent;
       }}
+
+      .app-footer p {{ margin: 0; text-align: center; }}
       .app-footer a {{
         color: inherit;
         text-decoration: none;
@@ -441,10 +441,8 @@ st.markdown(
       }}
       .app-footer a:hover {{ border-bottom-style: solid; }}
 
-      /* Petits écrans */
       @media (max-width: 640px) {{
-        .block-container {{ padding-bottom: 88px; }}
-        .app-footer {{ font-size: 12px; padding: 12px; }}
+        .app-footer {{ font-size: 12px; }}
       }}
     </style>
 

@@ -3,7 +3,7 @@
 # Clean Masters Filename Generator
 
 **Purpose**
-A tiny Streamlit app to **simplify filename nomenclature** for deliveries of **masters** and other **post-production exports** (PAD, broadcast, platforms, QC, archive). It enforces consistent, readable names and avoids human error.
+A tiny Python / Streamlit app to **simplify filename nomenclature** for deliveries of **masters** and other **post-production exports** (PAD, broadcast, platforms, QC, archive). It enforces consistent, readable names and avoids human error.
 
 **Live app:** [https://cmf.cairnstudios.fr](https://cmf.cairnstudios.fr)
 
@@ -34,9 +34,8 @@ A tiny Streamlit app to **simplify filename nomenclature** for deliveries of **m
 
   * Neat “card” layout with subtle shadow.
   * Per-row file icon (`file-icon.png`) with the **ID under the icon**.
-  * Compact card height (no big empty gap).
 
-* **Quick file-size calculator (H.264 High)**
+* **Quick file-size calculator**
 
   * Duration (hh\:mm\:ss) + bitrate (Mbps) → estimated **MB/GB** (+\~1% container overhead).
 

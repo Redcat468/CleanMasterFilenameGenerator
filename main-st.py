@@ -88,72 +88,102 @@ def pdf_bytes(entries, program):
     c.drawString(100, y, f"EXPORT LIST {sanitize(program)} {today}")
     y -= 40
 
-    # Styles cartes + icône
-    card_h   = 78
-    pad      = 12
+    pad = 12
+    vpad_bottom = 10
+    corner = 10
+    shadow_offset = 2
     icon_path = "file-icon.png"
-    icon_w, icon_h = 24, 24  # icône plus grande
+    icon_w, icon_h = 26, 26  # icône un peu plus grosse
 
     for e in entries:
-        # Nouvelle page si besoin
+        # --- Calcule les positions de texte pour connaître la hauteur utile ---
+        has_desc = bool((e.get("description") or "").strip())
+        # Baselines texte (plus bas = plus petit en Y)
+        filename_y = y - pad - 6
+        desc_y     = y - pad - 24 if has_desc else filename_y
+
+        # Bloc icône + ID
+        icon_x = 40 + pad
+        icon_y = y - pad - icon_h            # top-align de l’icône
+        has_id = bool((e.get("id") or "").strip())
+        id_y   = icon_y - 10 if has_id else icon_y  # ID situé sous l’icône
+
+        # Le point le plus bas du contenu (le plus petit Y)
+        content_bottom_y = min(desc_y, id_y)
+
+        # Hauteur de carte dynamique (avec marge basse)
+        card_h = (y - (content_bottom_y - vpad_bottom))
+        # Garde-fous sur la hauteur
+        if card_h < 48:
+            card_h = 48
+
+        # Saut de page si besoin
         if y - card_h < 60:
             c.showPage()
             y = h - 80
-            # (titre simple sur nouvelle page)
             c.setFont("Helvetica-Bold", 16)
             c.drawString(40, y, f"EXPORT LIST {sanitize(program)} {today}")
             y -= 40
+            # Recalcule baselines avec le nouveau y
+            filename_y = y - pad - 6
+            desc_y     = y - pad - 24 if has_desc else filename_y
+            icon_y     = y - pad - icon_h
+            id_y       = icon_y - 10 if has_id else icon_y
+            content_bottom_y = min(desc_y, id_y)
+            card_h = (y - (content_bottom_y - vpad_bottom))
+            if card_h < 48:
+                card_h = 48
 
         x = 40
         card_w = w - 2 * x
 
-        # --- Ombre (offset) ---
-        c.setFillColorRGB(0.85, 0.87, 0.92)   # gris/bleu très clair (ombre)
-        c.roundRect(x + 2, y - card_h - 2, card_w, card_h, 10, fill=True, stroke=False)
+        # --- Ombre légère (offset) ---
+        c.setFillColorRGB(0.85, 0.87, 0.92)
+        c.roundRect(x + shadow_offset, y - card_h - shadow_offset, card_w, card_h, corner, fill=True, stroke=False)
 
-        # --- Carte blanche moderne ---
-        c.setFillColorRGB(1, 1, 1)            # blanc
-        c.roundRect(x, y - card_h, card_w, card_h, 10, fill=True, stroke=False)
-        c.setStrokeColorRGB(0.85, 0.85, 0.90) # bordure subtile
-        c.roundRect(x, y - card_h, card_w, card_h, 10, fill=False, stroke=True)
+        # --- Carte blanche moderne + bordure subtile ---
+        c.setFillColorRGB(1, 1, 1)
+        c.roundRect(x, y - card_h, card_w, card_h, corner, fill=True, stroke=False)
+        c.setStrokeColorRGB(0.88, 0.88, 0.92)
+        c.roundRect(x, y - card_h, card_w, card_h, corner, fill=False, stroke=True)
 
-        # --- Icône fichier (image) ---
-        icon_x = x + pad
-        icon_y = y - pad - icon_h  # top aligné au padding
+        # --- Icône fichier (image png) ---
         if os.path.exists(icon_path):
-            c.drawImage(icon_path, icon_x, icon_y, width=icon_w, height=icon_h,
-                        mask='auto', preserveAspectRatio=True)
+            c.drawImage(icon_path, icon_x, icon_y, width=icon_w, height=icon_h, mask='auto', preserveAspectRatio=True)
         else:
-            # Fallback simple
+            # Fallback simple si l’icône manque
             c.setFillColorRGB(1.0, 0.84, 0.0)
             c.rect(icon_x, icon_y, icon_w, icon_h, fill=True, stroke=False)
         c.setFillColorRGB(0, 0, 0)
 
-        # --- ID sous l’icône, centré (sans 'ID :') ---
-        id_text = str(e.get('id', '')).strip()
-        if id_text:
+        # --- ID sous l’icône, centré (sans libellé) ---
+        if has_id:
+            id_text = str(e.get('id', '')).strip()
             c.setFont("Helvetica", 9)
             c.setFillColorRGB(0.35, 0.40, 0.55)
             tw = c.stringWidth(id_text, "Helvetica", 9)
             cx = icon_x + icon_w / 2.0
             c.drawString(cx - tw / 2.0, icon_y - 10, id_text)
-        c.setFillColorRGB(0, 0, 0)
+            c.setFillColorRGB(0, 0, 0)
 
         # --- Texte à droite de l’icône ---
         tx = icon_x + icon_w + pad
         c.setFont("Helvetica-Bold", 12)
-        c.drawString(tx, y - pad - 6, (e.get("filename", ""))[:80])
+        c.drawString(tx, filename_y, (e.get("filename", ""))[:80])
 
         c.setFont("Helvetica-Oblique", 10)
         c.setFillColorRGB(0.2, 0.2, 0.2)
-        c.drawString(tx, y - pad - 24, (e.get("description", ""))[:90])
-
+        if has_desc:
+            c.drawString(tx, desc_y, (e.get("description", ""))[:90])
         c.setFillColorRGB(0, 0, 0)
+
+        # Avance pour la carte suivante
         y -= (card_h + pad)
 
     c.save()
     buf.seek(0)
     return buf.getvalue(), f"{sanitize(program)}_{today}_export_list.pdf"
+
 
 
 def bitrate_h264_high(mbps: float, total_sec: int):

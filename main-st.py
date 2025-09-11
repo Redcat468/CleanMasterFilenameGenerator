@@ -436,120 +436,87 @@ if logo_path.exists():
     )
 else:
     st.title("Clean Masters Filename Generator")
-# >>> NEW: Bloc Import / Export CSV (placer avant le formulaire principal)
-with st.expander("Import / Export CSV", expanded=False):
-    c1, c2 = st.columns([1,1])
 
-    with c1:
-        st.caption("🔽 Importer un CSV pour pré-remplir les champs et charger la liste")
-        csv_file = st.file_uploader("Choisir un CSV", type=["csv"], key="csv_uploader")
-        if csv_file is not None and st.button("Charger le CSV"):
-            ok, msg = load_csv_into_state(csv_file.read())
-            if ok:
-                st.success(msg)
-                st.rerun()
-            else:
-                st.error(msg)
-
-    with c2:
-        st.caption("🔼 Exporter la liste actuelle en CSV")
-        if st.session_state.entries:
-            csv_bytes, csv_name = export_entries_csv(
-                st.session_state.entries,
-                st.session_state.get("program_name","PROGRAM")
-            )
-            st.download_button(
-                "Exporter CSV",
-                data=csv_bytes,
-                file_name=csv_name,
-                mime="text/csv"
-            )
-        else:
-            st.info("Aucune entrée à exporter pour le moment.")
+# >>> NEW: bootstrap des valeurs widget via session_state (avant la création des widgets)
+defaults = {
+    "program_name_input": st.session_state.get("program_name", ""),
+    "version": "",
+    "form_date": date.today(),
+    "language_sel": "FR",
+    "subtitles_sel": "NOSUB",
+    "fileformat_sel": file_formats[0],
+    "videoformat_sel": video_formats[0],
+    "videoaspect_input": "",
+    "videores_input": "",
+    "cadence_sel": "",
+    "audioformat_sel": AUDIO_FORMATS[0][0],  # ex: "20"
+    "audiocodec_input": "",
+    "description_input": "",
+}
+for k, v in defaults.items():
+    st.session_state.setdefault(k, v)
 
 with st.form("form"):
     col1, col2, col3 = st.columns([1,1,1])
-    program = col1.text_input("PROGRAM NAME *",
-        value=st.session_state.get("program_name_input", st.session_state.program_name),
-        key="program_name_input"
-    )
-    version = col2.text_input("VERSION", value=st.session_state.get("version",""), key="version")
-    form_date = col3.date_input("DATE *",
-        value=st.session_state.get("form_date", date.today()),
-        format="YYYY-MM-DD",
-        key="form_date"
-    )
+    program   = col1.text_input("PROGRAM NAME *", key="program_name_input")
+    version   = col2.text_input("VERSION", key="version")
+    form_date = col3.date_input("DATE *", key="form_date", format="YYYY-MM-DD")
 
     col4, col5, col6 = st.columns([1,1,1])
-    language = col4.selectbox(
+    language   = col4.selectbox(
         "LANGUAGE *",
         options=[c for c,_ in LANGUAGES],
-        index = max(0, [c for c,_ in LANGUAGES].index(st.session_state.get("language_sel","FR"))),
         format_func=lambda x: dict(LANGUAGES)[x],
         key="language_sel"
     )
-    subtitles = col5.selectbox(
+    subtitles  = col5.selectbox(
         "SUBTITLES *",
         options=[c for c,_ in SUBTITLES],
-        index = max(0, [c for c,_ in SUBTITLES].index(st.session_state.get("subtitles_sel","NOSUB"))),
         format_func=lambda x: dict(SUBTITLES).get(x, x),
         key="subtitles_sel"
     )
     fileformat = col6.selectbox(
         "FILE FORMAT *",
         options=file_formats,
-        index = max(0, file_formats.index(st.session_state.get("fileformat_sel", file_formats[0]))),
         key="fileformat_sel"
     )
-
-
 
     col7, col8, col9 = st.columns([1,1,1])
     videoformat = col7.selectbox(
         "VIDEO FORMAT *",
         options=video_formats,
-        index = max(0, video_formats.index(st.session_state.get("videoformat_sel", video_formats[0]))),
         key="videoformat_sel"
     )
-    videoaspect = col8.text_input("VIDEO ASPECT (ex: 1.85 ou 1,85)",
-        value=st.session_state.get("videoaspect_input",""),
+    videoaspect = col8.text_input(
+        "VIDEO ASPECT (ex: 1.85 ou 1,85)",
         key="videoaspect_input"
     )
-    videores = col9.text_input("VIDEO RESOLUTION (ex: 1920x1080)",
-        value=st.session_state.get("videores_input",""),
+    videores    = col9.text_input(
+        "VIDEO RESOLUTION (ex: 1920x1080)",
         key="videores_input"
     )
 
-
     col10, col11, col12 = st.columns([1,1,1])
-    cadence = col10.selectbox(
+    cadence     = col10.selectbox(
         "CADENCE",
         options=CADENCES,
-        index = max(0, CADENCES.index(st.session_state.get("cadence_sel",""))),
         key="cadence_sel"
     )
     audioformat = col11.selectbox(
         "AUDIO FORMAT *",
         options=[c for c,_ in AUDIO_FORMATS],
-        index = max(0, [c for c,_ in AUDIO_FORMATS].index(st.session_state.get("audioformat_sel","20"))),
         format_func=lambda x: dict(AUDIO_FORMATS)[x] + f" ({x})",
         key="audioformat_sel"
     )
-    audiocodec = col12.text_input(
-        "AUDIO CODEC",
-        value=st.session_state.get("audiocodec_input",""),
-        key="audiocodec_input"
-    )
+    audiocodec  = col12.text_input("AUDIO CODEC", key="audiocodec_input")
 
-    description = st.text_input(
-        "Description",
-        value=st.session_state.get("description_input",""),
-        key="description_input"
-    )
+    description = st.text_input("Description", key="description_input")
 
     submitted = st.form_submit_button("Add Filename entry")
     if submitted:
-        required_ok = all([program, form_date, language, subtitles, fileformat, videoformat, audioformat])
+        required_ok = all([
+            program, form_date, language, subtitles, fileformat, videoformat, audioformat
+        ])
         if not required_ok:
             st.error("Please fill all required fields (*)")
         else:
@@ -571,7 +538,7 @@ with st.form("form"):
             })
             renumber_entries()
             st.success("Entry added.")
-
+            st.rerun()
 
 
 st.subheader("Entries")
@@ -681,7 +648,36 @@ else:
         renumber_entries()
         st.rerun()
 
+# >>> NEW: Bloc Import / Export CSV (placer avant le formulaire principal)
+with st.expander("Import / Export CSV", expanded=False):
+    c1, c2 = st.columns([1,1])
 
+    with c1:
+        st.caption("🔽 Importer un CSV pour pré-remplir les champs et charger la liste")
+        csv_file = st.file_uploader("Choisir un CSV", type=["csv"], key="csv_uploader")
+        if csv_file is not None and st.button("Charger le CSV"):
+            ok, msg = load_csv_into_state(csv_file.read())
+            if ok:
+                st.success(msg)
+                st.rerun()
+            else:
+                st.error(msg)
+
+    with c2:
+        st.caption("🔼 Exporter la liste actuelle en CSV")
+        if st.session_state.entries:
+            csv_bytes, csv_name = export_entries_csv(
+                st.session_state.entries,
+                st.session_state.get("program_name","PROGRAM")
+            )
+            st.download_button(
+                "Exporter CSV",
+                data=csv_bytes,
+                file_name=csv_name,
+                mime="text/csv"
+            )
+        else:
+            st.info("Aucune entrée à exporter pour le moment.")
 
 # Export PDF
 st.divider()

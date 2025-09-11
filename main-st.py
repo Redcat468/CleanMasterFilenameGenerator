@@ -8,6 +8,8 @@ from reportlab.lib.pagesizes import A4
 import json, html
 import base64
 from pathlib import Path
+import csv
+
 
 
 # -------- Helpers --------
@@ -238,6 +240,163 @@ def build_typed_segments(program, version, form_date, language, subtitles,
     return typed
 
 
+# >>> NEW: CSV helpers
+CSV_COLUMNS = [
+    "id","program","version","date","language","subtitles","fileformat","videoformat",
+    "videoaspect","videores","cadence","audioformat","audiocodec","description","filename"
+]
+
+def _seg(segments, key):
+    return next((v for (k,v) in segments if k == key), "")
+
+def _split_lang_sub(lang_sub: str):
+    """
+    LANG_SUB est soit 'EN', soit 'EN-NOSUB', soit 'EN-STFR'…
+    Retourne (language, subtitles) où subtitles est code langue (FR, ES…) ou 'NOSUB' ou ''.
+    """
+    if not lang_sub:
+        return "", ""
+    lang, sep, rest = lang_sub.partition("-")
+    if not sep:
+        return lang, ""
+    if rest == "NOSUB":
+        return lang, "NOSUB"
+    if rest.startswith("ST"):
+        return lang, rest[2:]  # STFR -> FR
+    return lang, ""  # fallback
+
+def entry_to_row(e: dict) -> dict:
+    segs = e.get("segments", [])
+    program  = _seg(segs, "PROGRAM")
+    version  = _seg(segs, "VERSION")
+    lang_sub = _seg(segs, "LANG_SUB")
+    language, subtitles = _split_lang_sub(lang_sub)
+    row = {
+        "id":          str(e.get("id","")),
+        "program":     program,
+        "version":     version,
+        "date":        _seg(segs, "DATE"),
+        "language":    language,
+        "subtitles":   subtitles or "NOSUB",
+        "fileformat":  _seg(segs, "FILE_FORMAT"),
+        "videoformat": _seg(segs, "VIDEO_FORMAT"),
+        "videoaspect": _seg(segs, "VIDEO_ASPECT"),
+        "videores":    _seg(segs, "RESOLUTION"),
+        "cadence":     _seg(segs, "CADENCE"),
+        "audioformat": _seg(segs, "AUDIO_FORMAT"),
+        "audiocodec":  _seg(segs, "AUDIO_CODEC"),
+        "description": e.get("description",""),
+        "filename":    e.get("filename",""),
+    }
+    return row
+
+def export_entries_csv(entries: list, program: str):
+    """Retourne (bytes, filename) pour st.download_button."""
+    from io import StringIO
+    sio = StringIO()
+    writer = csv.DictWriter(sio, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for e in entries:
+        writer.writerow(entry_to_row(e))
+    data = sio.getvalue().encode("utf-8")
+    today = datetime.now().strftime("%Y%m%d")
+    fname = f"{sanitize(program)}_{today}_export_list.csv"
+    return data, fname
+
+def _to_date(val: str):
+    try:
+        return datetime.strptime(val.strip(), "%Y-%m-%d").date()
+    except Exception:
+        try:
+            return datetime.strptime(val.strip(), "%d/%m/%Y").date()
+        except Exception:
+            return date.today()
+
+def load_csv_into_state(file_bytes: bytes):
+    """Lit le CSV et remplit les champs + la liste des entries. Renvoie (ok, msg)."""
+    try:
+        text = file_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = file_bytes.decode("latin-1")
+
+    reader = csv.DictReader(text.splitlines())
+    rows = list(reader)
+    if not rows:
+        return False, "CSV vide."
+
+    # Nettoie l’état
+    st.session_state.entries = []
+    st.session_state.id_counter = 0
+
+    # 1ère ligne pour pré-remplir les champs du formulaire
+    first = rows[0]
+    program     = first.get("program","").strip()
+    version     = first.get("version","").strip()
+    date_str    = first.get("date","").strip()
+    language    = first.get("language","").strip() or "FR"
+    subtitles   = first.get("subtitles","").strip() or "NOSUB"
+    fileformat  = first.get("fileformat","").strip() or "MOV"
+    videoformat = first.get("videoformat","").strip() or "HD"
+    videoaspect = first.get("videoaspect","").strip()
+    videores    = first.get("videores","").strip()
+    cadence     = first.get("cadence","").strip()
+    audioformat = first.get("audioformat","").strip() or "20"
+    audiocodec  = first.get("audiocodec","").strip()
+    form_dt     = _to_date(date_str) if date_str else date.today()
+
+    # Sauvegarde pour pré-remplir la UI (les champs avec key=…)
+    st.session_state.program_name       = program
+    st.session_state["program_name_input"] = program
+    st.session_state["version"]         = version
+    st.session_state["form_date"]       = form_dt
+    st.session_state["language_sel"]    = language
+    st.session_state["subtitles_sel"]   = subtitles
+    st.session_state["fileformat_sel"]  = fileformat
+    st.session_state["videoformat_sel"] = videoformat
+    st.session_state["videoaspect_input"]= videoaspect
+    st.session_state["videores_input"]  = videores
+    st.session_state["cadence_sel"]     = cadence if cadence in CADENCES else ""
+    st.session_state["audioformat_sel"] = audioformat
+    st.session_state["audiocodec_input"]= audiocodec
+    # description du formulaire = vide par défaut ; on ne l’impose pas
+
+    # Construit les entries à partir de chaque ligne
+    for row in rows:
+        program     = row.get("program","").strip() or st.session_state.program_name
+        version     = row.get("version","").strip()
+        date_str    = row.get("date","").strip()
+        language    = row.get("language","").strip() or st.session_state.get("language_sel","FR")
+        subtitles   = row.get("subtitles","").strip() or st.session_state.get("subtitles_sel","NOSUB")
+        fileformat  = row.get("fileformat","").strip() or st.session_state.get("fileformat_sel","MOV")
+        videoformat = row.get("videoformat","").strip() or st.session_state.get("videoformat_sel","HD")
+        videoaspect = row.get("videoaspect","").strip()
+        videores    = row.get("videores","").strip()
+        cadence     = row.get("cadence","").strip()
+        audioformat = row.get("audioformat","").strip() or st.session_state.get("audioformat_sel","20")
+        audiocodec  = row.get("audiocodec","").strip()
+        description = row.get("description","").strip()
+        form_dt     = _to_date(date_str) if date_str else st.session_state.get("form_date", date.today())
+
+        # Recalcule systématiquement le filename à partir des champs (fiable)
+        fname = build_filename(
+            program, version, form_dt, language, subtitles, fileformat, videoformat,
+            videoaspect, videores, cadence, audioformat, audiocodec
+        )
+        typed = build_typed_segments(
+            program, version, form_dt, language, subtitles, fileformat, videoformat,
+            videoaspect, videores, cadence, audioformat, audiocodec
+        )
+
+        st.session_state.id_counter += 1
+        st.session_state.entries.append({
+            "id": "",  # sera renuméroté
+            "filename": fname,
+            "description": description,
+            "segments": typed,
+        })
+
+    renumber_entries()
+    return True, f"{len(rows)} lignes importées."
 
 
 
@@ -277,29 +436,116 @@ if logo_path.exists():
     )
 else:
     st.title("Clean Masters Filename Generator")
+# >>> NEW: Bloc Import / Export CSV (placer avant le formulaire principal)
+with st.expander("Import / Export CSV", expanded=False):
+    c1, c2 = st.columns([1,1])
+
+    with c1:
+        st.caption("🔽 Importer un CSV pour pré-remplir les champs et charger la liste")
+        csv_file = st.file_uploader("Choisir un CSV", type=["csv"], key="csv_uploader")
+        if csv_file is not None and st.button("Charger le CSV"):
+            ok, msg = load_csv_into_state(csv_file.read())
+            if ok:
+                st.success(msg)
+                st.rerun()
+            else:
+                st.error(msg)
+
+    with c2:
+        st.caption("🔼 Exporter la liste actuelle en CSV")
+        if st.session_state.entries:
+            csv_bytes, csv_name = export_entries_csv(
+                st.session_state.entries,
+                st.session_state.get("program_name","PROGRAM")
+            )
+            st.download_button(
+                "Exporter CSV",
+                data=csv_bytes,
+                file_name=csv_name,
+                mime="text/csv"
+            )
+        else:
+            st.info("Aucune entrée à exporter pour le moment.")
 
 with st.form("form"):
     col1, col2, col3 = st.columns([1,1,1])
-    program = col1.text_input("PROGRAM NAME *", value=st.session_state.program_name, key="program_name_input")
-    version = col2.text_input("VERSION", key="version")
-    form_date = col3.date_input("DATE *", value=date.today(), format="YYYY-MM-DD", key="form_date")
+    program = col1.text_input("PROGRAM NAME *",
+        value=st.session_state.get("program_name_input", st.session_state.program_name),
+        key="program_name_input"
+    )
+    version = col2.text_input("VERSION", value=st.session_state.get("version",""), key="version")
+    form_date = col3.date_input("DATE *",
+        value=st.session_state.get("form_date", date.today()),
+        format="YYYY-MM-DD",
+        key="form_date"
+    )
 
     col4, col5, col6 = st.columns([1,1,1])
-    language = col4.selectbox("LANGUAGE *", options=[c for c,_ in LANGUAGES], format_func=lambda x: dict(LANGUAGES)[x])
-    subtitles = col5.selectbox("SUBTITLES *", options=[c for c,_ in SUBTITLES], format_func=lambda x: dict(SUBTITLES).get(x, x))
-    fileformat = col6.selectbox("FILE FORMAT *", options=file_formats)
+    language = col4.selectbox(
+        "LANGUAGE *",
+        options=[c for c,_ in LANGUAGES],
+        index = max(0, [c for c,_ in LANGUAGES].index(st.session_state.get("language_sel","FR"))),
+        format_func=lambda x: dict(LANGUAGES)[x],
+        key="language_sel"
+    )
+    subtitles = col5.selectbox(
+        "SUBTITLES *",
+        options=[c for c,_ in SUBTITLES],
+        index = max(0, [c for c,_ in SUBTITLES].index(st.session_state.get("subtitles_sel","NOSUB"))),
+        format_func=lambda x: dict(SUBTITLES).get(x, x),
+        key="subtitles_sel"
+    )
+    fileformat = col6.selectbox(
+        "FILE FORMAT *",
+        options=file_formats,
+        index = max(0, file_formats.index(st.session_state.get("fileformat_sel", file_formats[0]))),
+        key="fileformat_sel"
+    )
+
+
 
     col7, col8, col9 = st.columns([1,1,1])
-    videoformat = col7.selectbox("VIDEO FORMAT *", options=video_formats)
-    videoaspect = col8.text_input("VIDEO ASPECT (ex: 1.85 ou 1,85)", value="")
-    videores = col9.text_input("VIDEO RESOLUTION (ex: 1920x1080)", value="")
+    videoformat = col7.selectbox(
+        "VIDEO FORMAT *",
+        options=video_formats,
+        index = max(0, video_formats.index(st.session_state.get("videoformat_sel", video_formats[0]))),
+        key="videoformat_sel"
+    )
+    videoaspect = col8.text_input("VIDEO ASPECT (ex: 1.85 ou 1,85)",
+        value=st.session_state.get("videoaspect_input",""),
+        key="videoaspect_input"
+    )
+    videores = col9.text_input("VIDEO RESOLUTION (ex: 1920x1080)",
+        value=st.session_state.get("videores_input",""),
+        key="videores_input"
+    )
+
 
     col10, col11, col12 = st.columns([1,1,1])
-    cadence = col10.selectbox("CADENCE", options=CADENCES, index=0)
-    audioformat = col11.selectbox("AUDIO FORMAT *", options=[c for c,_ in AUDIO_FORMATS], format_func=lambda x: dict(AUDIO_FORMATS)[x] + f" ({x})")
-    audiocodec = col12.text_input("AUDIO CODEC", value="")
+    cadence = col10.selectbox(
+        "CADENCE",
+        options=CADENCES,
+        index = max(0, CADENCES.index(st.session_state.get("cadence_sel",""))),
+        key="cadence_sel"
+    )
+    audioformat = col11.selectbox(
+        "AUDIO FORMAT *",
+        options=[c for c,_ in AUDIO_FORMATS],
+        index = max(0, [c for c,_ in AUDIO_FORMATS].index(st.session_state.get("audioformat_sel","20"))),
+        format_func=lambda x: dict(AUDIO_FORMATS)[x] + f" ({x})",
+        key="audioformat_sel"
+    )
+    audiocodec = col12.text_input(
+        "AUDIO CODEC",
+        value=st.session_state.get("audiocodec_input",""),
+        key="audiocodec_input"
+    )
 
-    description = st.text_input("Description", value="")
+    description = st.text_input(
+        "Description",
+        value=st.session_state.get("description_input",""),
+        key="description_input"
+    )
 
     submitted = st.form_submit_button("Add Filename entry")
     if submitted:

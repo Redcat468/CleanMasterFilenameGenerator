@@ -313,90 +313,151 @@ def _to_date(val: str):
             return date.today()
 
 def load_csv_into_state(file_bytes: bytes):
-    """Lit le CSV et remplit les champs + la liste des entries. Renvoie (ok, msg)."""
-    try:
-        text = file_bytes.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        text = file_bytes.decode("latin-1")
+    """
+    Lit un CSV et pré-remplit le 'modèle' (model_*) + reconstruit st.session_state.entries.
+    Ne touche jamais aux clés de widgets (program_name_input, etc.).
+    Retourne (True/False, message).
+    """
+    from io import StringIO
 
-    reader = csv.DictReader(text.splitlines())
-    rows = list(reader)
+    # --- Décodage robuste ---
+    text = None
+    for enc in ("utf-8-sig", "utf-8", "latin-1"):
+        try:
+            text = file_bytes.decode(enc)
+            break
+        except Exception:
+            continue
+    if text is None:
+        return False, "Impossible de décoder le CSV (utf-8 / latin-1)."
+
+    # --- Lecture CSV ---
+    reader = csv.DictReader(StringIO(text))
+    if not reader.fieldnames:
+        return False, "CSV sans en-têtes."
+    rows = [ { (k or "").strip(): (v or "").strip() for k, v in row.items() } for row in reader ]
     if not rows:
         return False, "CSV vide."
 
-    # Nettoie l’état
+    # --- Prépare des ensembles de validation rapides ---
+    LANG_CODES = {c for c, _ in LANGUAGES}
+    SUB_CODES  = {c for c, _ in SUBTITLES}  # inclut "NOSUB"
+    AF_CODES   = [c for c, _ in AUDIO_FORMATS]  # list pour conserver l'ordre
+    AF_SET     = set(AF_CODES)
+
+    # --- Lis la 1ère ligne pour peupler le 'modèle' (model_*) ---
+    first = rows[0]
+    def g(key, default=""):
+        return (first.get(key, default) or "").strip()
+
+    program     = g("program")
+    version     = g("version")
+    date_str    = g("date")
+    language    = g("language") or "FR"
+    subtitles   = g("subtitles") or "NOSUB"
+    fileformat  = g("fileformat") or "MOV"
+    videoformat = g("videoformat") or "HD"
+    videoaspect = g("videoaspect")
+    videores    = g("videores")
+    cadence     = g("cadence")
+    audioformat = g("audioformat") or (AF_CODES[0] if AF_CODES else "20")
+    audiocodec  = g("audiocodec")
+
+    # Normalisations / fallback sûrs
+    if language not in LANG_CODES:
+        language = "FR"
+    if subtitles not in SUB_CODES:
+        # autoriser une langue simple en STxx si oubli de ST
+        if subtitles and subtitles in LANG_CODES:
+            subtitles = subtitles  # on garde, build_filename fera ST<code> si besoin
+        else:
+            subtitles = "NOSUB"
+    if audioformat not in AF_SET:
+        audioformat = AF_CODES[0] if AF_CODES else "20"
+    if cadence and cadence not in CADENCES:
+        cadence = ""
+
+    form_dt = _to_date(date_str) if date_str else date.today()
+
+    # --- Alimente le modèle (utilisé par les widgets via value=/index=) ---
+    st.session_state["model_program"]      = program
+    st.session_state["model_version"]      = version
+    st.session_state["model_form_date"]    = form_dt
+    st.session_state["model_language"]     = language
+    st.session_state["model_subtitles"]    = subtitles
+    st.session_state["model_fileformat"]   = fileformat
+    st.session_state["model_videoformat"]  = videoformat
+    st.session_state["model_videoaspect"]  = videoaspect
+    st.session_state["model_videores"]     = videores
+    st.session_state["model_cadence"]      = cadence
+    st.session_state["model_audioformat"]  = audioformat
+    st.session_state["model_audiocodec"]   = audiocodec
+    st.session_state["model_description"]  = ""
+
+    # Utile pour PDF / en-têtes
+    if program:
+        st.session_state.program_name = program
+
+    # --- Reconstruit la liste d'entries ---
     st.session_state.entries = []
     st.session_state.id_counter = 0
 
-    # 1ère ligne pour pré-remplir les champs du formulaire
-    first = rows[0]
-    program     = first.get("program","").strip()
-    version     = first.get("version","").strip()
-    date_str    = first.get("date","").strip()
-    language    = first.get("language","").strip() or "FR"
-    subtitles   = first.get("subtitles","").strip() or "NOSUB"
-    fileformat  = first.get("fileformat","").strip() or "MOV"
-    videoformat = first.get("videoformat","").strip() or "HD"
-    videoaspect = first.get("videoaspect","").strip()
-    videores    = first.get("videores","").strip()
-    cadence     = first.get("cadence","").strip()
-    audioformat = first.get("audioformat","").strip() or "20"
-    audiocodec  = first.get("audiocodec","").strip()
-    form_dt     = _to_date(date_str) if date_str else date.today()
-
-    # Sauvegarde pour pré-remplir la UI (les champs avec key=…)
-    st.session_state.program_name       = program
-    st.session_state["program_name_input"] = program
-    st.session_state["version"]         = version
-    st.session_state["form_date"]       = form_dt
-    st.session_state["language_sel"]    = language
-    st.session_state["subtitles_sel"]   = subtitles
-    st.session_state["fileformat_sel"]  = fileformat
-    st.session_state["videoformat_sel"] = videoformat
-    st.session_state["videoaspect_input"]= videoaspect
-    st.session_state["videores_input"]  = videores
-    st.session_state["cadence_sel"]     = cadence if cadence in CADENCES else ""
-    st.session_state["audioformat_sel"] = audioformat
-    st.session_state["audiocodec_input"]= audiocodec
-    # description du formulaire = vide par défaut ; on ne l’impose pas
-
-    # Construit les entries à partir de chaque ligne
     for row in rows:
-        program     = row.get("program","").strip() or st.session_state.program_name
-        version     = row.get("version","").strip()
-        date_str    = row.get("date","").strip()
-        language    = row.get("language","").strip() or st.session_state.get("language_sel","FR")
-        subtitles   = row.get("subtitles","").strip() or st.session_state.get("subtitles_sel","NOSUB")
-        fileformat  = row.get("fileformat","").strip() or st.session_state.get("fileformat_sel","MOV")
-        videoformat = row.get("videoformat","").strip() or st.session_state.get("videoformat_sel","HD")
-        videoaspect = row.get("videoaspect","").strip()
-        videores    = row.get("videores","").strip()
-        cadence     = row.get("cadence","").strip()
-        audioformat = row.get("audioformat","").strip() or st.session_state.get("audioformat_sel","20")
-        audiocodec  = row.get("audiocodec","").strip()
-        description = row.get("description","").strip()
-        form_dt     = _to_date(date_str) if date_str else st.session_state.get("form_date", date.today())
+        def gr(key, default=""):
+            return (row.get(key, default) or "").strip()
 
-        # Recalcule systématiquement le filename à partir des champs (fiable)
+        r_program     = gr("program")     or st.session_state.get("model_program", "")
+        r_version     = gr("version")     or st.session_state.get("model_version", "")
+        r_date_str    = gr("date")
+        r_language    = gr("language")    or st.session_state.get("model_language", "FR")
+        r_subtitles   = gr("subtitles")   or st.session_state.get("model_subtitles", "NOSUB")
+        r_fileformat  = gr("fileformat")  or st.session_state.get("model_fileformat", "MOV")
+        r_videoformat = gr("videoformat") or st.session_state.get("model_videoformat", "HD")
+        r_videoaspect = gr("videoaspect") or st.session_state.get("model_videoaspect", "")
+        r_videores    = gr("videores")    or st.session_state.get("model_videores", "")
+        r_cadence     = gr("cadence")     or st.session_state.get("model_cadence", "")
+        r_audioformat = gr("audioformat") or st.session_state.get("model_audioformat", AF_CODES[0] if AF_CODES else "20")
+        r_audiocodec  = gr("audiocodec")  or st.session_state.get("model_audiocodec", "")
+        r_description = gr("description")
+
+        # Normalisations par ligne
+        if r_language not in LANG_CODES:
+            r_language = st.session_state.get("model_language", "FR")
+        if r_subtitles not in SUB_CODES:
+            if r_subtitles and r_subtitles in LANG_CODES:
+                pass  # on tolère le code langue simple (sera rendu STxx si requis en build_filename)
+            else:
+                r_subtitles = st.session_state.get("model_subtitles", "NOSUB")
+        if r_audioformat not in AF_SET:
+            r_audioformat = st.session_state.get("model_audioformat", AF_CODES[0] if AF_CODES else "20")
+        if r_cadence and r_cadence not in CADENCES:
+            r_cadence = st.session_state.get("model_cadence", "")
+
+        r_form_dt = _to_date(r_date_str) if r_date_str else st.session_state.get("model_form_date", date.today())
+
+        # Recalcule systématiquement le filename pour cohérence
         fname = build_filename(
-            program, version, form_dt, language, subtitles, fileformat, videoformat,
-            videoaspect, videores, cadence, audioformat, audiocodec
+            r_program, r_version, r_form_dt, r_language, r_subtitles, r_fileformat, r_videoformat,
+            r_videoaspect, r_videores, r_cadence, r_audioformat, r_audiocodec
         )
         typed = build_typed_segments(
-            program, version, form_dt, language, subtitles, fileformat, videoformat,
-            videoaspect, videores, cadence, audioformat, audiocodec
+            r_program, r_version, r_form_dt, r_language, r_subtitles, r_fileformat, r_videoformat,
+            r_videoaspect, r_videores, r_cadence, r_audioformat, r_audiocodec
         )
 
-        st.session_state.id_counter += 1
         st.session_state.entries.append({
-            "id": "",  # sera renuméroté
+            "id": "",  # renuméroté après
             "filename": fname,
-            "description": description,
+            "description": r_description,
             "segments": typed,
         })
 
+    # Numérote proprement et sync le compteur pour la prochaine insertion
     renumber_entries()
+    st.session_state.id_counter = len(st.session_state.entries)
+
     return True, f"{len(rows)} lignes importées."
+
 
 
 

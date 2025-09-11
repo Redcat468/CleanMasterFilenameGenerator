@@ -457,66 +457,117 @@ for k, v in defaults.items():
     st.session_state.setdefault(k, v)
 
 with st.form("form"):
+    # Prépare les listes d'options
+    _LANG_CODES = [c for c, _ in LANGUAGES]
+    _SUB_CODES  = [c for c, _ in SUBTITLES]
+
+    # Indices sûrs pour les selectbox (fallback 0)
+    _lang_default = st.session_state.get("model_language", "FR")
+    lang_idx = _LANG_CODES.index(_lang_default) if _lang_default in _LANG_CODES else 0
+
+    _sub_default = st.session_state.get("model_subtitles", "NOSUB")
+    sub_idx = _SUB_CODES.index(_sub_default) if _sub_default in _SUB_CODES else 0
+
+    _ff_default = st.session_state.get("model_fileformat", file_formats[0])
+    ff_idx = file_formats.index(_ff_default) if _ff_default in file_formats else 0
+
+    _vf_default = st.session_state.get("model_videoformat", video_formats[0])
+    vf_idx = video_formats.index(_vf_default) if _vf_default in video_formats else 0
+
+    _cad_default = st.session_state.get("model_cadence", "")
+    cad_idx = CADENCES.index(_cad_default) if _cad_default in CADENCES else 0
+
+    _af_default = st.session_state.get("model_audioformat", AUDIO_FORMATS[0][0])
+    AF_CODES = [c for c, _ in AUDIO_FORMATS]
+    af_idx = AF_CODES.index(_af_default) if _af_default in AF_CODES else 0
+
     col1, col2, col3 = st.columns([1,1,1])
-    program   = col1.text_input("PROGRAM NAME *", key="program_name_input")
-    version   = col2.text_input("VERSION", key="version")
-    form_date = col3.date_input("DATE *", key="form_date", format="YYYY-MM-DD")
+    program = col1.text_input(
+        "PROGRAM NAME *",
+        value=st.session_state.get("model_program", st.session_state.get("program_name","")),
+        key="program_name_input",
+    )
+    version = col2.text_input(
+        "VERSION",
+        value=st.session_state.get("model_version",""),
+        key="version",
+    )
+    form_date = col3.date_input(
+        "DATE *",
+        value=st.session_state.get("model_form_date", date.today()),
+        format="YYYY-MM-DD",
+        key="form_date",
+    )
 
     col4, col5, col6 = st.columns([1,1,1])
-    language   = col4.selectbox(
+    language = col4.selectbox(
         "LANGUAGE *",
-        options=[c for c,_ in LANGUAGES],
+        options=_LANG_CODES,
+        index=lang_idx,
         format_func=lambda x: dict(LANGUAGES)[x],
-        key="language_sel"
+        key="language_sel",
     )
-    subtitles  = col5.selectbox(
+    subtitles = col5.selectbox(
         "SUBTITLES *",
-        options=[c for c,_ in SUBTITLES],
+        options=_SUB_CODES,
+        index=sub_idx,
         format_func=lambda x: dict(SUBTITLES).get(x, x),
-        key="subtitles_sel"
+        key="subtitles_sel",
     )
     fileformat = col6.selectbox(
         "FILE FORMAT *",
         options=file_formats,
-        key="fileformat_sel"
+        index=ff_idx,
+        key="fileformat_sel",
     )
 
     col7, col8, col9 = st.columns([1,1,1])
     videoformat = col7.selectbox(
         "VIDEO FORMAT *",
         options=video_formats,
-        key="videoformat_sel"
+        index=vf_idx,
+        key="videoformat_sel",
     )
     videoaspect = col8.text_input(
         "VIDEO ASPECT (ex: 1.85 ou 1,85)",
-        key="videoaspect_input"
+        value=st.session_state.get("model_videoaspect",""),
+        key="videoaspect_input",
     )
-    videores    = col9.text_input(
+    videores = col9.text_input(
         "VIDEO RESOLUTION (ex: 1920x1080)",
-        key="videores_input"
+        value=st.session_state.get("model_videores",""),
+        key="videores_input",
     )
 
     col10, col11, col12 = st.columns([1,1,1])
-    cadence     = col10.selectbox(
+    cadence = col10.selectbox(
         "CADENCE",
         options=CADENCES,
-        key="cadence_sel"
+        index=cad_idx,
+        key="cadence_sel",
     )
     audioformat = col11.selectbox(
         "AUDIO FORMAT *",
-        options=[c for c,_ in AUDIO_FORMATS],
+        options=AF_CODES,
+        index=af_idx,
         format_func=lambda x: dict(AUDIO_FORMATS)[x] + f" ({x})",
-        key="audioformat_sel"
+        key="audioformat_sel",
     )
-    audiocodec  = col12.text_input("AUDIO CODEC", key="audiocodec_input")
+    audiocodec = col12.text_input(
+        "AUDIO CODEC",
+        value=st.session_state.get("model_audiocodec",""),
+        key="audiocodec_input",
+    )
 
-    description = st.text_input("Description", key="description_input")
+    description = st.text_input(
+        "Description",
+        value=st.session_state.get("model_description",""),
+        key="description_input",
+    )
 
     submitted = st.form_submit_button("Add Filename entry")
     if submitted:
-        required_ok = all([
-            program, form_date, language, subtitles, fileformat, videoformat, audioformat
-        ])
+        required_ok = all([program, form_date, language, subtitles, fileformat, videoformat, audioformat])
         if not required_ok:
             st.error("Please fill all required fields (*)")
         else:
@@ -531,7 +582,7 @@ with st.form("form"):
             st.session_state.program_name = program
             st.session_state["id_counter"] = st.session_state.get("id_counter", 0) + 1
             st.session_state.entries.append({
-                "id": "",  # placeholder, on renumérote juste après
+                "id": "",
                 "filename": fname,
                 "description": description or "",
                 "segments": typed,
